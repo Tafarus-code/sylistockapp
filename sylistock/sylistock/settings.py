@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Local apps
-    'sylistock',
+    'sylistockapp',
 
     # Third-party apps
     'rest_framework',
