@@ -1,1 +1,24 @@
-/ensure_python.bat
+# Virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local env files
+sylistock/.env
+sylistock/.env.local
+
+# Local DB
+sylistock/db.sqlite3
+
+# IDE
+.idea/
+
+# Coverage
+coverage.xml
+htmlcov/
+
+# Pytest cache
+.pytest_cache/
