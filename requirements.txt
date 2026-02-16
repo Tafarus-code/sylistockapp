@@ -25,3 +25,5 @@ coverage>=6.0; python_version >= "3.12"
 #   pip install -r requirements.txt
 # After installing and testing, lock versions with:
 #   pip freeze > requirements.txt
+
+django
