@@ -12,3 +12,4 @@ class DummyTest(TestCase):
         """Verify the app is installed in Django."""
         from django.apps import apps
         self.assertTrue(apps.is_installed('sylistockapp'))
+
