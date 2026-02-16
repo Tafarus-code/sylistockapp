@@ -3,7 +3,7 @@ name: Django CI/CD Pipeline
 # Trigger on push to any branch and pull requests
 on:
   push:
-    branches: [ main, develop, pipelineconfig ]
+    branches: [ main, develop, 'SCRUM-*', 'feature/*'  ]
   pull_request:
     branches: [ main, develop ]
 
