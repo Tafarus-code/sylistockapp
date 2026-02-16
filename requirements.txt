@@ -1,0 +1,26 @@
+# requirements for the sylistock Django project
+# This project requires Python 3.12 (or newer) for development and deployment.
+# To create a venv with Python 3.12 on Windows: `py -3.12 -m venv env`
+# Minimal, recommended packages for development and common deploy targets.
+# Edit versions as needed; pin exact versions before production deploy.
+
+Django>=4.2,<5.0; python_version >= "3.12"
+# REST API support (optional)
+djangorestframework>=3.14; python_version >= "3.12"
+# .env file support and simple env parsing
+python-dotenv>=1.0; python_version >= "3.12"
+django-environ>=0.10; python_version >= "3.12"
+# PostgreSQL client (binary wheel)
+psycopg2-binary>=2.9; python_version >= "3.12"
+# Useful for debugging during development
+django-debug-toolbar>=4.0; python_version >= "3.12"
+# WSGI server for deployment (skip on Windows)
+gunicorn>=20.1; python_version >= "3.12" and platform_system != "Windows"
+pytest>=7.0; python_version >= "3.12"
+pytest-django>=4.0; python_version >= "3.12"
+pytest-cov>=3.0; python_version >= "3.12"
+coverage>=6.0; python_version >= "3.12"
+# Install with:
+#   pip install -r requirements.txt
+# After installing and testing, lock versions with:
+#   pip freeze > requirements.txt
