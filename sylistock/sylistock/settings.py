@@ -50,7 +50,6 @@ INSTALLED_APPS = [
 
     # Local apps
     'sylistock',
-    'sylistockapp',
 
     # Third-party apps
     'rest_framework',
