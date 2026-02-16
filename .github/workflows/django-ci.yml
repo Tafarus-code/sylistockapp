@@ -3,14 +3,14 @@ name: Django CI/CD Pipeline
 # Trigger on push to any branch and pull requests
 on:
   push:
-    branches: [ main, develop, pipelineconfig ]
+    branches: [ main, develop, 'SCRUM-*', 'feature/*'  ]
   pull_request:
     branches: [ main, develop ]
 
 # Environment variables
 env:
   PYTHON_VERSION: '3.12'
-  DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/test_db'
+  DATABASE_URL: 'postgresql://mamadou:cr6TTCVC7UEUT9nxruRIzBWQ1UF4EHAU@dpg-d69afm14tr6s73ci0vl0-a.ohio-postgres.render.com/sylidb'
 
 jobs:
   lint:
@@ -41,29 +41,18 @@ jobs:
           pip install flake8 bandit
 
       - name: Run flake8 linting
-        run: flake8 . --exclude=venv,migrations,.venv,*.egg-info
+        run: |
+          cd sylistock
+          flake8 . --exclude=venv,migrations,.venv,*.egg-info
 
       - name: Run bandit security check
-        run: bandit -r . -ll --exclude ./venv,./migrations,./.venv
+        run: |
+          cd sylistock
+          bandit -r . -ll --exclude ./venv,./migrations,./.venv
 
   test:
     name: Unit Tests & Coverage
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: test_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout code

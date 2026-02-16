@@ -1,17 +1,13 @@
 # 1. Define the environment
 image: python:3.12-slim
 
-# 2. Add PostgreSQL as a secondary service for testing
-services:
-  - postgres:16
-
-# 3. Global Variables (Fintech security: never hardcode real passwords here)
+# 2. Global Variables - Render PostgreSQL Connection
+# WARNING: Never commit real credentials to version control!
+# Use GitLab CI/CD Variables for sensitive data in production.
 variables:
-  POSTGRES_DB: test_db
-  POSTGRES_USER: postgres_user
-  POSTGRES_PASSWORD: password123
-  POSTGRES_HOST_AUTH_METHOD: trust
-  DATABASE_URL: "postgres://postgres_user:password123@postgres:5432/test_db"
+  RENDER_DEPLOY_HOOK: "https://api.render.com/deploy/srv-xxxxxx/xxxxxx"
+  # Render PostgreSQL credentials (use GitLab Secrets in production)
+  DATABASE_URL: "postgresql://mamadou:cr6TTCVC7UEUT9nxruRIzBWQ1UF4EHAU@dpg-d69afm14tr6s73ci0vl0-a.ohio-postgres.render.com/sylidb"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 # 4. Cache dependencies to save build minutes
@@ -24,24 +20,35 @@ cache:
 stages:
   - lint
   - test
+  - deploy
 
 # Stage 1: Security & Code Quality Check
 linting:
   stage: lint
-  script:
+  before_script:
     - pip install flake8 bandit
-    - flake8 . --exclude=venv,migrations
-    - bandit -r . # Checks for common security vulnerabilities
+  script:
+    - cd sylistock
+    - flake8 . --exclude=venv,migrations,.venv,*.egg-info
+    - bandit -r . -ll --exclude ./venv,./migrations,./.venv
 
 # Stage 2: Database Migrations & Pytest
 unit_tests:
   stage: test
   before_script:
     - apt-get update && apt-get install -y libpq-dev gcc
-    - python -m venv venv
-    - source venv/bin/activate
     - pip install -r requirements.txt
+    - pip install pytest pytest-django pytest-cov coverage
   script:
+    - cd sylistock
     - python manage.py migrate
-    - pytest --cov=. # Runs tests and generates a coverage report
+    - pytest --cov=. --cov-report=term-missing
   coverage: '/TOTAL.*\s+(\d+%)$/'
+deploy_to_render:
+  stage: deploy
+  image: curlimages/curl:latest
+  only:
+    - main  # Only deploy when code is merged into the main branch
+  script:
+    - echo "Deploying to Render..."
+    - curl -X POST "$RENDER_DEPLOY_HOOK"
