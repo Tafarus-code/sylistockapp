@@ -89,12 +89,16 @@ jobs:
           pip install pytest pytest-django pytest-cov coverage
 
       - name: Run Django migrations
-        run: python manage.py migrate
+        run: |
+          cd sylistock
+          python manage.py migrate
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Run pytest with coverage
-        run: pytest --cov=. --cov-report=xml --cov-report=term
+        run: |
+          cd sylistock
+          pytest --cov=. --cov-report=xml --cov-report=term
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
