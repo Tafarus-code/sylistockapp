@@ -22,7 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-s-kygscb-bu_)3xt=zhoho-zb@zzwfea^)9#w^g_j%mn-47+%)'
+SECRET_KEY = (
+    'django-insecure-s-kygscb-bu_)3xt=zhoho-zb@zzwfea^)9#w^g_j%mn-47+%)'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -42,6 +44,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'sylistock',
+    'sylistockapp',
 
     # Third-party apps
     'rest_framework',
@@ -80,8 +83,10 @@ WSGI_APPLICATION = 'sylistock.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# 1. Fallback to a local SQLite file if no DATABASE_URL is found (for local dev)
-# 2. Automatically parses the "DATABASE_URL" we set in the .gitlab-ci.yml
+# 1. Fallback to a local SQLite file if no DATABASE_URL is found
+#    (for local dev)
+# 2. Automatically parses the "DATABASE_URL" we set in the
+#    .gitlab-ci.yml
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + os.path.join(BASE_DIR, 'db.sqlite3'),
@@ -96,16 +101,28 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'NAME': (
+            'django.contrib.auth.password_validation'
+            '.UserAttributeSimilarityValidator'
+        ),
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'NAME': (
+            'django.contrib.auth.password_validation'
+            '.MinimumLengthValidator'
+        ),
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        'NAME': (
+            'django.contrib.auth.password_validation'
+            '.CommonPasswordValidator'
+        ),
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        'NAME': (
+            'django.contrib.auth.password_validation'
+            '.NumericPasswordValidator'
+        ),
     },
 ]
 

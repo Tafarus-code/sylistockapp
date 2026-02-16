@@ -1,0 +1,110 @@
+name: Django CI/CD Pipeline
+
+# Trigger on push to any branch and pull requests
+on:
+  push:
+    branches: [ main, develop, pipelineconfig ]
+  pull_request:
+    branches: [ main, develop ]
+
+# Environment variables
+env:
+  PYTHON_VERSION: '3.12'
+  DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/test_db'
+
+jobs:
+  lint:
+    name: Linting & Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 bandit
+
+      - name: Run flake8 linting
+        run: flake8 . --exclude=venv,migrations,.venv,*.egg-info
+
+      - name: Run bandit security check
+        run: bandit -r . -ll --exclude ./venv,./migrations,./.venv
+
+  test:
+    name: Unit Tests & Coverage
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-django pytest-cov coverage
+
+      - name: Run Django migrations
+        run: |
+          cd sylistock
+          python manage.py migrate
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Run pytest with coverage
+        run: |
+          cd sylistock
+          pytest --cov=. --cov-report=xml --cov-report=term
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
