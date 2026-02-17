@@ -9,6 +9,7 @@ from .models import (
     MerchantProfile,
 )
 
+
 class ProcessScanView(APIView):
 
     def post(self, request):
