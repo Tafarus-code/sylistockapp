@@ -31,7 +31,8 @@ class ScanSerializer(serializers.Serializer):
     device_id = serializers.CharField(max_length=255)
 
     def validate_barcode(self, value):
-        # Ensure the product exists in our global catalog before allowing a scan
+        # Ensure the product exists in our global catalog
+        # before allowing a scan
         if not Product.objects.filter(barcode=value).exists():
             raise serializers.ValidationError(
                 "Product barcode not recognized in catalog."
@@ -52,4 +53,3 @@ class InventoryLogSerializer(serializers.ModelSerializer):
             "source",
             "timestamp",
         ]
-
