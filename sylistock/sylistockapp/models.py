@@ -54,8 +54,9 @@ class InventoryLog(models.Model):
 
     merchant = models.ForeignKey(MerchantProfile, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity_changed = models.IntegerField()  # e.g., +10 for stock in, -1 for sale
     action = models.CharField(max_length=3, choices=ACTION_TYPES)
+    # e.g., +10 for stock in, -1 for sale
+    quantity_changed = models.IntegerField()
 
     # CRITICAL FOR DATA QUALITY:
     source = models.CharField(max_length=10, choices=SCAN_SOURCES)
