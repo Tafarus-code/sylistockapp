@@ -60,10 +60,10 @@ class InventoryLog(models.Model):
     # CRITICAL FOR DATA QUALITY:
     source = models.CharField(max_length=10, choices=SCAN_SOURCES)
     device_id = models.CharField(
-        max_length=255, help_text="Serial or UUID"
+        max_length=255,
+        help_text="Serial or UUID",
     )
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name_plural = "Inventory Logs"
-
