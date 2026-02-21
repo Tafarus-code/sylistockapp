@@ -181,7 +181,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # available (requires running collectstatic during deploy). WhiteNoise
 # will serve the compressed/manifest files.
 if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    STATICFILES_STORAGE = (
+        'whitenoise.storage.CompressedManifest'
+        'StaticFilesStorage'
+    )
 
 # Security Settings for Production
 # Set these via environment variables in Render
@@ -206,4 +209,3 @@ startup_msg = (
 logging.getLogger('django').info(startup_msg)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
