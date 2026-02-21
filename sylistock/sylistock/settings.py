@@ -14,6 +14,8 @@ from pathlib import Path
 import os
 import dj_database_url
 from dotenv import load_dotenv
+import logging
+import sys
 
 # Load environment variables from .env file
 load_dotenv()
@@ -91,7 +93,8 @@ WSGI_APPLICATION = 'sylistock.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Prefer a single DATABASE_URL env var but accept common Render names as fallbacks.
+# Prefer a single DATABASE_URL env var but accept common Render
+# names as fallbacks.
 _db_env_candidates = [
     'DATABASE_URL',
     'RENDER_DATABASE_URL',
@@ -106,8 +109,8 @@ for _name in _db_env_candidates:
         break
 
 if _db_url:
-    # Use dj_database_url to parse the provided URL. Keep connection health checks
-    # and reasonable conn_max_age for production.
+    # Use dj_database_url to parse the provided URL. Keep connection
+    # health checks and reasonable conn_max_age for production.
     DATABASES = {
         'default': dj_database_url.config(
             default=_db_url,
@@ -174,8 +177,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Use compressed manifest static files storage in production when available
-# (requires running collectstatic during deploy) -- WhiteNoise will serve them.
+# Use compressed manifest static files storage in production when
+# available (requires running collectstatic during deploy). WhiteNoise
+# will serve the compressed/manifest files.
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -189,13 +193,17 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-# Small runtime diagnostics to make deploy debug easier (printed to stdout).
-# This runs early during Django startup so Render logs will show these values.
-import logging, sys
+# Small runtime diagnostics to make deploy debug easier (printed to
+# stdout). This runs early during Django startup so Render logs will
+# show these values.
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logging.getLogger('django').info(
-    f"startup: DEBUG={DEBUG} ALLOWED_HOSTS={ALLOWED_HOSTS} BASE_DIR={BASE_DIR} PYTHONPATH={os.getenv('PYTHONPATH')}"
+startup_msg = (
+    f"startup: DEBUG={DEBUG} "
+    f"ALLOWED_HOSTS={ALLOWED_HOSTS} "
+    f"BASE_DIR={BASE_DIR} "
+    f"PYTHONPATH={os.getenv('PYTHONPATH')}"
 )
+logging.getLogger('django').info(startup_msg)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
