@@ -11,9 +11,10 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.2
   flutter_bloc: ^8.1.0
-  flutter_datawedge: ^2.3.0
+  flutter_datawedge: ^3.2.0
   device_info_plus: ^10.1.0
   mobile_scanner: ^5.0.0 # For the phone camera fallback
+  dio: ^5.0.0
 
 dev_dependencies:
   flutter_test:
@@ -21,4 +22,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
