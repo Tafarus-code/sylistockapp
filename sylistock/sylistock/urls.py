@@ -19,16 +19,22 @@ from django.urls import path, include
 import sys
 import os
 
-# Add project root to Python path for Railway deployment
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Calculate correct project root (3 levels up from current file for Railway)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Try different import paths for Railway deployment
 try:
+    # Try project root first (Railway: sylistockapp/views_home.py)
     from views_home import api_home
 except ImportError:
-    # Fallback to local relative import
-    from .views_home import api_home
+    try:
+        # Try sylistockapp directory (local development)
+        from sylistockapp.views_home import api_home
+    except ImportError:
+        # Try relative import as last resort
+        from .views_home import api_home
 
 urlpatterns = [
     path('', api_home, name='api-home'),
