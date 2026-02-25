@@ -47,7 +47,8 @@ def bulk_import_inventory(request):
                     price = float(row.get('price', 0))
 
                     if not barcode or not name:
-                        errors.append(f'Row {row_num}: Missing barcode or name')
+                        error_msg = f'Row {row_num}: Missing barcode or name'
+                        errors.append(error_msg)
                         continue
 
                     # Get or create product
@@ -113,7 +114,8 @@ def export_inventory(request):
 
         if format_type == 'csv':
             response = Response(content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename=inventory.csv'
+            disposition = 'attachment; filename=inventory.csv'
+            response['Content-Disposition'] = disposition
 
             writer = csv.writer(response)
             writer.writerow(['Barcode', 'Name', 'Quantity', 'Price'])
