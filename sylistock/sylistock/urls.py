@@ -19,8 +19,15 @@ from django.urls import path, include
 import sys
 import os
 
-# Calculate correct project root (3 levels up from current file for Railway)
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Calculate project root for Railway deployment
+# Current file: sylistock/sylistock/urls.py
+# Project root: sylistockapp/ (4 levels up)
+current_file = os.path.abspath(__file__)
+parent_dir = os.path.dirname(current_file)
+grandparent_dir = os.path.dirname(parent_dir)
+greatgrandparent_dir = os.path.dirname(grandparent_dir)
+project_root = os.path.dirname(greatgrandparent_dir)
+
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
