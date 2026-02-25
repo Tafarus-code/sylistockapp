@@ -7,7 +7,7 @@ services:
       pip install -r requirements.txt
       python sylistock/manage.py collectstatic --noinput
       python sylistock/manage.py migrate
-    startCommand: gunicorn sylistock.wsgi:application --chdir sylistock --bind 0.0.0.0:$PORT --workers 3
+    startCommand: gunicorn --chdir sylistock --bind 0.0.0.0:$PORT --workers 3 sylistock.wsgi:application
     healthCheckPath: /
     envVars:
       - key: DEBUG
