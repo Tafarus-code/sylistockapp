@@ -107,7 +107,11 @@ class InventoryDetailView(APIView):
 
         # Update fields
         for field, value in request.data.items():
-            if field in ['barcode', 'name', 'quantity', 'description', 'price']:
+            allowed_fields = [
+                'barcode', 'name', 'quantity', 
+                'description', 'price'
+            ]
+            if field in allowed_fields:
                 item[field] = value
 
         return Response(item)
@@ -115,8 +119,11 @@ class InventoryDetailView(APIView):
     def delete(self, request, pk):
         item = self.get_object(pk)
         if not item:
-            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
-        
+            return Response(
+                {'error': 'Item not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
         # In real app, you'd delete from database
         return Response(status=status.HTTP_204_NO_CONTENT)
 
