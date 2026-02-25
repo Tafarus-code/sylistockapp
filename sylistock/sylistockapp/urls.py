@@ -27,19 +27,21 @@ urlpatterns = [
     # Stock management
     path('items/', get_stock_items, name='stock-items'),
     path('items/add/', add_stock_item, name='add-stock-item'),
-    path('items/update/<int:item_id>/', update_stock_item, name='update-stock-item'),
-    path('items/remove/<int:item_id>/', remove_stock_item, name='remove-stock-item'),
+    path('items/update/<int:item_id>/', update_stock_item,
+         name='update-stock-item'),
+    path('items/remove/<int:item_id>/', remove_stock_item,
+         name='remove-stock-item'),
     path('items/search/', search_items, name='search-items'),
     path('items/<int:item_id>/', get_item_details, name='item-details'),
-    
+
     # Alerts
     path('alerts/low-stock/', low_stock_alerts, name='low-stock-alerts'),
-    path('alerts/threshold/', set_stock_alert_threshold, name='set-alert-threshold'),
-    
+    path('alerts/threshold/', set_stock_alert_threshold,
+         name='set-alert-threshold'),
+
     # Reports
     path('reports/sales/', sales_report, name='sales-report'),
-    path('reports/performance/',
-         merchant_performance,
+    path('reports/performance/', merchant_performance,
          name='performance-report'),
 
     # Bulk operations

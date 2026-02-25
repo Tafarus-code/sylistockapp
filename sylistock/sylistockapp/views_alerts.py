@@ -14,12 +14,12 @@ def low_stock_alerts(request):
     try:
         merchant_profile = request.user.merchantprofile
         threshold = int(request.GET.get('threshold', 5))
-        
+
         low_stock_items = StockItem.objects.filter(
             merchant=merchant_profile,
             quantity__lte=threshold
         ).select_related('product')
-        
+
         alerts = []
         for item in low_stock_items:
             alerts.append({
@@ -28,9 +28,9 @@ def low_stock_alerts(request):
                 'barcode': item.product.barcode,
                 'current_quantity': item.quantity,
                 'threshold': threshold,
-                'last_updated': item.pk,  # Using pk as placeholder since no updated_at field
+                'last_updated': item.pk,  # Using pk as placeholder
             })
-        
+
         return Response({
             'alerts': alerts,
             'count': len(alerts),

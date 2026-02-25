@@ -49,7 +49,7 @@ def sales_report(request):
 
         # Find most active device
         most_active = (
-            max(device_counts.items(), key=lambda x: x[1])[0] 
+            max(device_counts.items(), key=lambda x: x[1])[0]
             if device_counts else 'none'
         )
 
@@ -61,7 +61,6 @@ def sales_report(request):
             'start_date': start_date.date(),
             'most_active_source': most_active,
         })
-
 
     except MerchantProfile.DoesNotExist:
         return Response(
@@ -83,19 +82,19 @@ def merchant_performance(request):
     """
     try:
         merchant_profile = request.user.merchantprofile
-        
+
         # Get basic metrics
         total_products = merchant_profile.stockitem_set.count()
         low_stock_count = merchant_profile.stockitem_set.filter(
-            current_quantity__lte=5
+            quantity__lte=5
         ).count()
-        
+
         # Get recent activity
         recent_logs = InventoryLog.objects.filter(
             merchant=merchant_profile,
             timestamp__gte=timezone.now() - timedelta(days=7)
         ).count()
-        
+
         return Response({
             'total_products': total_products,
             'low_stock_count': low_stock_count,

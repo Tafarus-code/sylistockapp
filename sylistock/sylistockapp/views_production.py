@@ -15,29 +15,29 @@ def add_stock_item(request):
     """
     try:
         merchant_profile = request.user.merchantprofile
-        
+
         barcode = request.data.get('barcode', '').strip()
         name = request.data.get('name', '').strip()
         quantity = int(request.data.get('quantity', 0))
         price = float(request.data.get('price', 0))
-        
+
         if not barcode or not name:
             return Response(
                 {'error': 'Barcode and name are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         with transaction.atomic():
             # Get or create product
             product, created = Product.objects.get_or_create(
                 barcode=barcode,
                 defaults={'name': name}
             )
-            
+
             if not created and product.name != name:
                 product.name = name
                 product.save()
-            
+
             # Create stock item
             stock_item = StockItem.objects.create(
                 merchant=merchant_profile,
@@ -45,7 +45,7 @@ def add_stock_item(request):
                 quantity=quantity,
                 sale_price=price,
             )
-            
+
             # Log the addition
             InventoryLog.objects.create(
                 merchant=merchant_profile,
@@ -54,7 +54,7 @@ def add_stock_item(request):
                 quantity_changed=quantity,
                 device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
             )
-        
+
         return Response({
             'id': stock_item.pk,
             'barcode': barcode,
@@ -83,7 +83,7 @@ def remove_stock_item(request, item_id):
     """
     try:
         merchant_profile = request.user.merchantprofile
-        
+
         try:
             stock_item = StockItem.objects.get(
                 id=item_id,
@@ -94,25 +94,25 @@ def remove_stock_item(request, item_id):
                 {'error': 'Stock item not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         quantity = int(request.data.get('quantity', 0))
-        
+
         if quantity <= 0:
             return Response(
                 {'error': 'Quantity must be positive'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         if quantity > stock_item.quantity:
             return Response(
                 {'error': 'Insufficient stock'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         with transaction.atomic():
             stock_item.quantity -= quantity
             stock_item.save()
-            
+
             # Log the removal
             InventoryLog.objects.create(
                 merchant=merchant_profile,
@@ -121,7 +121,7 @@ def remove_stock_item(request, item_id):
                 quantity_changed=-quantity,
                 device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
             )
-        
+
         return Response({
             'id': stock_item.pk,
             'remaining_quantity': stock_item.quantity,
@@ -148,7 +148,7 @@ def update_stock_item(request, item_id):
     """
     try:
         merchant_profile = request.user.merchantprofile
-        
+
         try:
             stock_item = StockItem.objects.get(
                 id=item_id,
@@ -159,16 +159,16 @@ def update_stock_item(request, item_id):
                 {'error': 'Stock item not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         quantity = request.data.get('quantity')
         price = request.data.get('price')
-        
+
         with transaction.atomic():
             if quantity is not None:
                 quantity = int(quantity)
                 old_quantity = stock_item.quantity
                 stock_item.quantity = quantity
-                
+
                 # Log the change
                 InventoryLog.objects.create(
                     merchant=merchant_profile,
@@ -177,12 +177,12 @@ def update_stock_item(request, item_id):
                     quantity_changed=quantity - old_quantity,
                     device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
                 )
-            
+
             if price is not None:
                 stock_item.sale_price = float(price)
-            
+
             stock_item.save()
-        
+
         return Response({
             'id': stock_item.pk,
             'quantity': stock_item.quantity,
@@ -209,26 +209,26 @@ def get_stock_items(request):
     """
     try:
         merchant_profile = request.user.merchantprofile
-        
+
         search = request.GET.get('search', '')
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 20))
-        
+
         queryset = StockItem.objects.filter(merchant=merchant_profile)
-        
+
         if search:
             queryset = queryset.filter(
                 Q(product__barcode__icontains=search) |
                 Q(product__name__icontains=search)
             )
-        
+
         queryset = queryset.select_related('product').order_by('-pk')
-        
+
         # Pagination
         start = (page - 1) * page_size
         end = start + page_size
         items = queryset[start:end]
-        
+
         items_data = []
         for item in items:
             items_data.append({
@@ -237,9 +237,9 @@ def get_stock_items(request):
                 'name': item.product.name,
                 'quantity': item.quantity,
                 'price': item.sale_price,
-                'last_updated': item.pk,  # Using pk as placeholder since no updated_at field
+                'last_updated': item.pk,  # Using pk as placeholder
             })
-        
+
         return Response({
             'items': items_data,
             'page': page,
@@ -268,7 +268,7 @@ def inventory_history(request):
         logs = InventoryLog.objects.filter(
             merchant=merchant_profile
         ).select_related('product').order_by('-timestamp')[:100]
-        
+
         history_data = []
         for log in logs:
             history_data.append({
@@ -280,7 +280,7 @@ def inventory_history(request):
                 'device_id': log.device_id,
                 'timestamp': log.timestamp,
             })
-        
+
         return Response({
             'history': history_data,
             'count': len(history_data),
