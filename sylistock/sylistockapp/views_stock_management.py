@@ -73,6 +73,7 @@ def update_stock_quantity(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def bulk_update_prices(request):

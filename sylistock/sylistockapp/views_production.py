@@ -256,6 +256,7 @@ def process_scan(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 def inventory_history(request):
     """
     Get inventory change history

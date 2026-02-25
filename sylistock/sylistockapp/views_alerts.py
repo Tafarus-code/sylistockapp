@@ -46,6 +46,7 @@ def low_stock_alerts(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def set_stock_alert_threshold(request):

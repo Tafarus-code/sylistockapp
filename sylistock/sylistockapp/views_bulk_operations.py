@@ -118,6 +118,7 @@ def bulk_import_inventory(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
 def export_inventory(request):
     """
     Export inventory to CSV file

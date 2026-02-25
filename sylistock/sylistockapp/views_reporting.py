@@ -29,11 +29,16 @@ def sales_report(request):
         # Calculate total sales
         total_sales = 0
         sales_data = []
+        device_counts = {}
 
         for log in sales_logs:
             # Simplified calculation - in real app, track actual sales
             quantity = abs(log.quantity_changed)
             total_sales += quantity
+
+            # Count device usage
+            device_id = log.device_id or 'unknown'
+            device_counts[device_id] = device_counts.get(device_id, 0) + 1
 
             sales_data.append({
                 'date': log.timestamp.date(),
@@ -42,6 +47,9 @@ def sales_report(request):
                 'quantity': quantity,
                 'device_id': log.device_id,
             })
+
+        # Find most active device
+        most_active = max(device_counts.items(), key=lambda x: x[1])[0] if device_counts else 'none'
 
         return Response({
             'total_sales': total_sales,
