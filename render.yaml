@@ -3,10 +3,7 @@ services:
     name: sylistockapp
     runtime: python
     plan: free
-    buildCommand: |
-      pip install -r requirements.txt
-      python sylistock/manage.py collectstatic --noinput
-      python sylistock/manage.py migrate
+    buildCommand: pip install -r requirements.txt && python sylistock/manage.py collectstatic --noinput && python sylistock/manage.py migrate
     startCommand: gunicorn --chdir sylistock --bind 0.0.0.0:$PORT --workers 3 sylistock.wsgi:application
     healthCheckPath: /
     envVars:
@@ -23,3 +20,5 @@ services:
       - key: SECRET_KEY
         generateValue: true
     autoDeploy: true
+    # Force Render to use this configuration
+    rootDir: .
