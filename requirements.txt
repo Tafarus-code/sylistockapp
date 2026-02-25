@@ -8,9 +8,10 @@ dj-database-url>=2.1.0
 psycopg2-binary>=2.9
 gunicorn>=20.1; platform_system != "Windows"
 whitenoise>=6.0
+django-cors-headers>=4.0
 
 # Testing
-pytest>=7.0
+pytest>=8.3
 pytest-django>=4.0
 pytest-cov>=3.0
 coverage>=6.0

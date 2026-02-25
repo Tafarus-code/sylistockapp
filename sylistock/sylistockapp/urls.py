@@ -5,7 +5,7 @@ urlpatterns = [
     # CRUD endpoints for Flutter app
     path('', InventoryListView.as_view(), name='inventory-list'),
     path('<int:pk>/', InventoryDetailView.as_view(), name='inventory-detail'),
-    
+
     # Original scan processing endpoint
     path('process-scan/', ProcessScanView.as_view(), name='process-scan'),
 ]

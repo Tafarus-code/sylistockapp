@@ -18,7 +18,9 @@ class InventoryItemSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     quantity = serializers.IntegerField()
     description = serializers.CharField(required=False, allow_blank=True)
-    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False
+    )
     created_at = serializers.DateTimeField(read_only=True)
 
 
@@ -26,7 +28,7 @@ class InventoryListView(APIView):
     """
     List all inventory items or create a new inventory item
     """
-    
+
     def get(self, request):
         # For demo, return some sample data
         # In real app, you'd query your actual inventory models
@@ -51,7 +53,7 @@ class InventoryListView(APIView):
             }
         ]
         return Response(sample_items)
-    
+
     def post(self, request):
         serializer = InventoryItemSerializer(data=request.data)
         if serializer.is_valid():
@@ -61,14 +63,16 @@ class InventoryListView(APIView):
             response_data['id'] = 999  # Mock ID
             response_data['created_at'] = '2023-01-01T00:00:00Z'
             return Response(response_data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class InventoryDetailView(APIView):
     """
     Retrieve, update or delete an inventory item
     """
-    
+
     def get_object(self, pk):
         # For demo, return mock data
         # In real app, you'd get from database
@@ -83,25 +87,31 @@ class InventoryDetailView(APIView):
                 'created_at': '2023-01-01T00:00:00Z'
             }
         return None
-    
+
     def get(self, request, pk):
         item = self.get_object(pk)
         if item:
             return Response(item)
-        return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+        return Response(
+            {'error': 'Item not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
     def patch(self, request, pk):
         item = self.get_object(pk)
         if not item:
-            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
-        
+            return Response(
+                {'error': 'Item not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
         # Update fields
         for field, value in request.data.items():
             if field in ['barcode', 'name', 'quantity', 'description', 'price']:
                 item[field] = value
-        
+
         return Response(item)
-    
+
     def delete(self, request, pk):
         item = self.get_object(pk)
         if not item:
