@@ -9,7 +9,7 @@ def api_home(request):
     
     # Check if request wants HTML or JSON
     if 'text/html' in request.META.get('HTTP_ACCEPT', ''):
-        # Return HTML UI
+        # Return HTML UI with Flutter app link
         template_content = """
 <!DOCTYPE html>
 <html lang="en">
@@ -118,6 +118,24 @@ def api_home(request):
             margin-bottom: 20px;
         }
         
+        .flutter-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #02569B, #0175C2);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 20px 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(2, 86, 155, 0.3);
+        }
+        
+        .flutter-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(2, 86, 155, 0.4);
+        }
+        
         .footer {
             margin-top: 30px;
             color: #666;
@@ -171,6 +189,13 @@ def api_home(request):
             </ul>
         </div>
         
+        <div style="margin: 30px 0;">
+            <h3 style="color: #333; margin-bottom: 15px;">🚀 Launch Mobile App</h3>
+            <a href="/static/flutter/index.html" class="flutter-button">
+                📱 Open Flutter App
+            </a>
+        </div>
+        
         <div class="status">🟢 API Active</div>
         
         <div class="footer">
@@ -191,7 +216,8 @@ def api_home(request):
                 'inventory': '/inventory/',
                 'admin': '/admin/',
                 'auth': '/auth/',
-                'docs': '/inventory/docs/'
+                'docs': '/inventory/docs/',
+                'flutter_app': '/static/flutter/index.html'
             },
             'status': 'active'
         })
