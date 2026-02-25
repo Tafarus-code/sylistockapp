@@ -16,7 +16,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from .views_home import api_home
+import sys
+import os
+
+# Add project root to Python path for Railway deployment
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+try:
+    from views_home import api_home
+except ImportError:
+    # Fallback to local relative import
+    from .views_home import api_home
 
 urlpatterns = [
     path('', api_home, name='api-home'),
