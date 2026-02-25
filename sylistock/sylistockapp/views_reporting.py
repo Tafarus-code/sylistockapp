@@ -49,7 +49,7 @@ def sales_report(request):
             'period_days': days,
             'sales_data': sales_data,
             'start_date': start_date.date(),
-            'most_active_source': most_active,
+            'end_date': timezone.now().date(),
         })
 
     except MerchantProfile.DoesNotExist:
@@ -63,6 +63,8 @@ def sales_report(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
+@api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def inventory_value_report(request):
     """
