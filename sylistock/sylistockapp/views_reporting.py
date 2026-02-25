@@ -49,7 +49,7 @@ def sales_report(request):
             'period_days': days,
             'sales_data': sales_data,
             'start_date': start_date.date(),
-            'end_date': timezone.now().date(),
+            'most_active_source': most_active,
         })
 
     except MerchantProfile.DoesNotExist:
@@ -63,8 +63,6 @@ def sales_report(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-
-@api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def inventory_value_report(request):
     """
@@ -149,7 +147,7 @@ def merchant_performance(request):
             ('ZEBRA', zebra_scans),
             ('PHONE', phone_scans),
             ('MANUAL', manual_entries),
-        ], key=lambda x: x[1])[1]
+        ], key=lambda x: x[1])[0]
 
         return Response({
             'period_days': 30,
