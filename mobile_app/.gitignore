@@ -1,0 +1,139 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VSCode related
+.vscode/
+*.code-workspace
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/gradlew
+/android/gradlew.bat
+/android/local.properties
+/android/.gradle/
+/android/captures/
+/android/keystores/
+android/app/google-services.json
+
+# iOS/Flutter related
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/Flutter/flutter_assets/
+/ios/Flutter/App.framework
+/ios/.symlinks/
+ios/Pods/
+ios/Podfile.lock
+
+# Web related
+/web/assets/
+/web/flutter_service_worker.js
+
+# Linux related
+/linux/flutter/
+linux/flutter/generated_plugin_registrant.cc
+linux/CMakeFiles/
+linux/cmake_install.cmake
+linux/Makefile
+linux/cmake/
+
+# macOS related
+/macos/Flutter/Flutter.framework
+/macos/Flutter/Flutter.podspec
+/macos/Flutter/Generated.xcconfig
+/macos/Flutter/flutter_export_environment.sh
+/macos/Flutter/flutter_assets/
+/macos/Flutter/App.framework
+/macos/.symlinks/
+macos/Pods/
+macos/Podfile.lock
+
+# Windows related
+/windows/flutter/
+windows/flutter/generated_plugin_registrant.cc
+windows/CMakeFiles/
+windows/cmake_install.cmake
+windows/Makefile
+windows/cmake/
+
+# Test related
+/test/coverage/
+test_driver/flutter_driver.dart
+integration_test/
+
+# Documentation
+/doc/api/
+**/doc/api/
+
+# Tooling
+devtools_options.yaml
+.flutter-tools-state
+
+# Local configuration
+local.properties
+*.local
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# Lock files (keep pubspec.lock but ignore others)
+*.lock
+!pubspec.lock
+
+# Metadata files that shouldn't be tracked
+.metadata
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa
+*.app
+*.dill
+*.packages
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Analysis and linting
+analysis_options.yaml
+analysis_options.yaml.lock
