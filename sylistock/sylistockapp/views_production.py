@@ -256,9 +256,6 @@ def process_scan(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
 def inventory_history(request):
     """
     Get inventory change history

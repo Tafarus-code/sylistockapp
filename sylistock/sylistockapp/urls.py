@@ -47,4 +47,3 @@ urlpatterns = [
     path('bulk/update/', bulk_update_inventory, name='bulk-update'),
 ]
 
-

@@ -176,5 +176,3 @@ def merchant_performance(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-
-

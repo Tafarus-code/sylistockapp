@@ -135,4 +135,3 @@ def bulk_update_prices(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-
