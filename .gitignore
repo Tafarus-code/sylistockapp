@@ -1,24 +1,82 @@
 # Virtual environment
 .venv/
 venv/
+env/
 
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 
 # Local env files
 sylistock/.env
 sylistock/.env.local
+sylistock/.env.production
+*.env
+.env.local
+.env.production
 
 # Local DB
 sylistock/db.sqlite3
+sylistock/db.sqlite3-journal
+*.db
+*.sqlite
+*.sqlite3
 
 # IDE
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # Coverage
 coverage.xml
 htmlcov/
+.coverage
+.nyc_output
+coverage/
 
 # Pytest cache
 .pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Node modules (if any)
+node_modules/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Django migrations (optional - uncomment if you want to exclude migrations)
+# */migrations/0*.py
+# !*/migrations/__init__.py

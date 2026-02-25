@@ -38,7 +38,7 @@ unit_tests:
   before_script:
     - apt-get update && apt-get install -y libpq-dev gcc
     - pip install -r requirements.txt
-    - pip install pytest pytest-django pytest-cov coverage
+    - pip install "pytest>=8.3" pytest-django pytest-cov coverage
   script:
     - cd sylistock
     - python manage.py migrate
