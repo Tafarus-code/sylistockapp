@@ -16,8 +16,35 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+import sys
+import os
+
+# Calculate project root for Railway deployment
+# Current file: sylistock/sylistock/urls.py
+# Project root: sylistockapp/ (4 levels up)
+current_file = os.path.abspath(__file__)
+parent_dir = os.path.dirname(current_file)
+grandparent_dir = os.path.dirname(parent_dir)
+greatgrandparent_dir = os.path.dirname(grandparent_dir)
+project_root = os.path.dirname(greatgrandparent_dir)
+
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Try different import paths for Railway deployment
+try:
+    # Try project root first (Railway: sylistockapp/views_home.py)
+    from views_home import api_home
+except ImportError:
+    try:
+        # Try sylistockapp directory (local development)
+        from sylistockapp.views_home import api_home
+    except ImportError:
+        # Try relative import as last resort
+        from .views_home import api_home
 
 urlpatterns = [
+    path('', api_home, name='api-home'),
     path('admin/', admin.site.urls),
 
     # Versioning your API is a Fintech "Must-Have"
