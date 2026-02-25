@@ -55,10 +55,12 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'rest_framework',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     # WhiteNoise serves static files efficiently without needing a separate
     # static file service in simple deployments like Render. It must come
     # directly after SecurityMiddleware.
@@ -207,5 +209,33 @@ startup_msg = (
     f"PYTHONPATH={os.getenv('PYTHONPATH')}"
 )
 logging.getLogger('django').info(startup_msg)
+
+# CORS settings for Flutter web app
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
+# Allow all origins for development
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+# Allow specific headers
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-requested-with',
+]
+
+# Allow specific methods
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS',
+]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
