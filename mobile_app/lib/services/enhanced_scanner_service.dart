@@ -1,17 +1,12 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../models/inventory_item.dart';
 
 class EnhancedScannerService {
   static const String _queueKey = 'scan_queue';
   static const String _backendUrlKey = 'backend_url';
   static const String _lastSyncKey = 'last_sync_time';
-  
-  final Dio _dio = Dio();
-  final ConnectivityService _connectivity = ConnectivityService();
 
   /// Initialize scanner service
   static Future<void> initialize() async {
@@ -43,7 +38,8 @@ class EnhancedScannerService {
   }) async {
     try {
       // Check connectivity
-      final isConnected = await _connectivity.isConnected();
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final isConnected = connectivityResult != ConnectivityResult.none;
       
       if (isConnected) {
         // Online: Send directly to backend
@@ -82,7 +78,7 @@ class EnhancedScannerService {
   ) async {
     try {
       final backendUrl = await getBackendUrl();
-      final response = await _dio.post(
+      final response = await Dio().post(
         '$backendUrl/inventory/process-scan/',
         data: {
           'barcode': barcode,
@@ -157,7 +153,7 @@ class EnhancedScannerService {
 
       for (final scanData in queue) {
         try {
-          final response = await _dio.post(
+          final response = await Dio().post(
             '$backendUrl/inventory/process-scan/',
             data: scanData,
             options: Options(
@@ -211,14 +207,14 @@ class EnhancedScannerService {
   static Future<DateTime?> getLastSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
     final syncTimeStr = prefs.getString(_lastSyncKey);
-    return syncTimeStr != null ? DateTime.parse(syncTimeStr!) : null;
+    return syncTimeStr != null ? DateTime.parse(syncTimeStr) : null;
   }
 
   /// Get inventory from backend with enhanced error handling
   static Future<Map<String, dynamic>> getInventory() async {
     try {
       final backendUrl = await getBackendUrl();
-      final response = await _dio.get(
+      final response = await Dio().get(
         '$backendUrl/inventory/',
         options: Options(
           connectTimeout: const Duration(seconds: 10),
@@ -257,7 +253,7 @@ class EnhancedScannerService {
   }) async {
     try {
       final backendUrl = await getBackendUrl();
-      final response = await _dio.post(
+      final response = await Dio().post(
         '$backendUrl/inventory/',
         data: {
           'product': {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../bloc/inventory_bloc.dart';
 import '../bloc/inventory_event.dart';
 import '../bloc/inventory_state.dart';
@@ -435,7 +434,7 @@ class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
               const SizedBox(height: 8),
               Expanded(
                 child: RefreshIndicator(
-                  onRefresh: () => _refreshInventory(),
+                  onRefresh: () async => _refreshInventory(),
                   child: ListView.builder(
                     itemCount: items.length,
                     itemBuilder: (context, index) {
@@ -491,9 +490,8 @@ class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
                   ),
                 ),
               ),
-            ),
-          ],
-        );
+            ],
+          );
         } else if (state is InventoryError) {
           return Center(
             child: Column(

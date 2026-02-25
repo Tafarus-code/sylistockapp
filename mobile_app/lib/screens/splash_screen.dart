@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/inventory_bloc.dart';
-import '../bloc/inventory_state.dart';
-import 'scanner_screen.dart';
+import 'enhanced_scanner_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -27,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
         MaterialPageRoute(
           builder: (context) => BlocProvider(
             create: (context) => InventoryBloc(),
-            child: const ScannerScreen(),
+            child: const EnhancedScannerScreen(),
           ),
         ),
       );
@@ -51,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),

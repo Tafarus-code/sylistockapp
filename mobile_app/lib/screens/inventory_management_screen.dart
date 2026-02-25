@@ -6,6 +6,7 @@ import '../bloc/inventory_event.dart';
 import '../bloc/inventory_state.dart';
 import '../models/inventory_item.dart';
 import '../services/enhanced_scanner_service.dart';
+import 'item_details_screen.dart';
 
 class InventoryManagementScreen extends StatefulWidget {
   const InventoryManagementScreen({super.key});
@@ -16,7 +17,6 @@ class InventoryManagementScreen extends StatefulWidget {
 
 class _InventoryManagementScreenState extends State<InventoryManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
-  bool _showAdvancedOptions = false;
 
   @override
   Widget build(BuildContext context) {
@@ -265,9 +265,8 @@ class _InventoryManagementScreenState extends State<InventoryManagementScreen> {
                   },
                 ),
               ),
-            ),
-          ],
-        );
+            ],
+          );
         } else if (state is InventoryError) {
           return Center(
             child: Column(

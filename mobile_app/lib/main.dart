@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'screens/scanner_screen.dart';
+import 'screens/enhanced_scanner_screen.dart';
 import 'screens/settings_screen.dart';
 import 'bloc/inventory_bloc.dart';
 import 'services/local_storage_service.dart';
@@ -44,7 +44,7 @@ class SylistockApp extends StatelessWidget {
       ),
       home: BlocProvider(
         create: (context) => InventoryBloc(),
-        child: const ScannerScreen(),
+        child: EnhancedScannerScreen(),
       ),
       routes: {
         '/settings': (context) => const SettingsScreen(),

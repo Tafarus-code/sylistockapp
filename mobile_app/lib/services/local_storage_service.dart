@@ -1,5 +1,4 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/inventory_item.dart';
 
 class LocalStorageService {
@@ -10,12 +9,9 @@ class LocalStorageService {
   late Box _settingsBox;
 
   Future<void> init() async {
-    await Hive.initFlutter();
-    Hive.registerAdapter(InventoryItemAdapter());
+    // Note: Hive.initFlutter() is already called in main.dart
     
-    final appDocumentDir = await getApplicationDocumentsDirectory();
-    await Hive.initFlutter(appDocumentDir.path);
-    
+    // For web, use default directory
     _inventoryBox = await Hive.openBox<InventoryItem>(_inventoryBoxName);
     _settingsBox = await Hive.openBox(_settingsBoxName);
   }
