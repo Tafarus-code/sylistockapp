@@ -108,7 +108,7 @@ class InventoryDetailView(APIView):
         # Update fields
         for field, value in request.data.items():
             allowed_fields = [
-                'barcode', 'name', 'quantity', 
+                'barcode', 'name', 'quantity',
                 'description', 'price'
             ]
             if field in allowed_fields:
