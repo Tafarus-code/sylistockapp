@@ -157,6 +157,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'sylistockapp' / 'static',
+]
 
 # Use compressed manifest static files storage in production when
 # available (requires running collectstatic during deploy). WhiteNoise

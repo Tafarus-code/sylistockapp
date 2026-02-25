@@ -43,8 +43,18 @@ except ImportError:
         # Try relative import as last resort
         from .views_home import api_home
 
+# Import Flutter app view
+try:
+    from views_flutter import flutter_app
+except ImportError:
+    try:
+        from sylistockapp.views_flutter import flutter_app
+    except ImportError:
+        from .views_flutter import flutter_app
+
 urlpatterns = [
     path('', api_home, name='api-home'),
+    path('app/', flutter_app, name='flutter-app'),
     path('admin/', admin.site.urls),
 
     # Versioning your API is a Fintech "Must-Have"
