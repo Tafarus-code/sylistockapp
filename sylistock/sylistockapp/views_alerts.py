@@ -1,38 +1,40 @@
-from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework import status
 from .models import StockItem, MerchantProfile
-from .serializers import StockItemSerializer
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def low_stock_alerts(request):
     """
-    Get items with low stock (less than threshold)
+    Get items with low stock levels
     """
     try:
         merchant_profile = request.user.merchantprofile
         threshold = int(request.GET.get('threshold', 5))
-
+        
         low_stock_items = StockItem.objects.filter(
             merchant=merchant_profile,
-            quantity__lt=threshold
-        ).select_related('product').order_by('quantity')
-
-        serializer = StockItemSerializer(low_stock_items, many=True)
-
-        critical_count = low_stock_items.filter(quantity__lt=2).count()
-        item_count = low_stock_items.count()
-
+            quantity__lte=threshold
+        ).select_related('product')
+        
+        alerts = []
+        for item in low_stock_items:
+            alerts.append({
+                'id': item.pk,
+                'product_name': item.product.name,
+                'barcode': item.product.barcode,
+                'current_quantity': item.quantity,
+                'threshold': threshold,
+                'last_updated': item.pk,  # Using pk as placeholder since no updated_at field
+            })
+        
         return Response({
-            'low_stock_items': serializer.data,
+            'alerts': alerts,
+            'count': len(alerts),
             'threshold': threshold,
-            'count': item_count,
-            'critical_count': critical_count,
-            'message': (
-                f'{item_count} items below threshold of {threshold}'
-            )
         })
 
     except MerchantProfile.DoesNotExist:
@@ -48,7 +50,7 @@ def low_stock_alerts(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def set_stock_alert_threshold(request):
     """
     Set custom low stock alert threshold
@@ -57,13 +59,10 @@ def set_stock_alert_threshold(request):
         threshold = int(request.data.get('threshold', 5))
 
         # You could save this to merchant profile
-        # merchant_profile.low_stock_threshold = threshold
-        # merchant_profile.save()
-
+        # For now, just return success
         return Response({
-            'success': True,
-            'message': f'Low stock alert threshold set to {threshold}',
-            'threshold': threshold
+            'message': f'Alert threshold set to {threshold}',
+            'threshold': threshold,
         })
 
     except MerchantProfile.DoesNotExist:
@@ -76,4 +75,3 @@ def set_stock_alert_threshold(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-

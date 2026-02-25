@@ -1,249 +1,251 @@
-from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
+from rest_framework import status
 from django.db import transaction
-from django.utils import timezone
-from .models import Product, StockItem, InventoryLog, MerchantProfile
-from .serializers import (
-    ProductSerializer, StockItemSerializer,
-    InventoryLogSerializer, ScanSerializer
-)
+from django.db.models import Q
+from .models import StockItem, MerchantProfile, Product, InventoryLog
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([permissions.IsAuthenticated])
-def inventory_list_create(request):
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_stock_item(request):
     """
-    List all inventory items or create new item
-    """
-    if request.method == 'GET':
-        # Get merchant's inventory
-        try:
-            merchant_profile = request.user.merchantprofile
-            stock_items = StockItem.objects.filter(
-                merchant=merchant_profile
-            ).select_related('product').order_by('-id')
-
-            serializer = StockItemSerializer(stock_items, many=True)
-            return Response(serializer.data)
-        except MerchantProfile.DoesNotExist:
-            return Response(
-                {'error': 'Merchant profile not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-    elif request.method == 'POST':
-        # Create new inventory item
-        try:
-            merchant_profile = request.user.merchantprofile
-            serializer = StockItemSerializer(data=request.data)
-
-            if serializer.is_valid():
-                # Get or create product
-                product_data = serializer.validated_data['product']
-                barcode = product_data['barcode']
-                product, created = Product.objects.get_or_create(
-                    barcode=barcode,
-                    defaults={
-                        'name': product_data['name'],
-                        'description': product_data.get('description', '')
-                    }
-                )
-
-                # Create stock item
-                stock_item = serializer.save(
-                    merchant=merchant_profile,
-                    product=product
-                )
-
-                # Log the addition
-                InventoryLog.objects.create(
-                    merchant=merchant_profile,
-                    product=product,
-                    action='IN',
-                    quantity_changed=stock_item.quantity,
-                    source='MANUAL',
-                    device_id='mobile_app'
-                )
-
-                response_serializer = StockItemSerializer(stock_item)
-                return Response(
-                    response_serializer.data,
-                    status=status.HTTP_201_CREATED
-                )
-            else:
-                return Response(
-                    serializer.errors,
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        except MerchantProfile.DoesNotExist:
-            return Response(
-                {'error': 'Merchant profile not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([permissions.IsAuthenticated])
-def inventory_detail_update_delete(request, pk):
-    """
-    Retrieve, update or delete inventory item
+    Add a new stock item
     """
     try:
         merchant_profile = request.user.merchantprofile
-        stock_item = get_object_or_404(
-            StockItem.objects.filter(pk=pk, merchant=merchant_profile)
-        )
-    except StockItem.DoesNotExist:
-        return Response(
-            {'error': 'Inventory item not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        
+        barcode = request.data.get('barcode', '').strip()
+        name = request.data.get('name', '').strip()
+        quantity = int(request.data.get('quantity', 0))
+        price = float(request.data.get('price', 0))
+        
+        if not barcode or not name:
+            return Response(
+                {'error': 'Barcode and name are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        with transaction.atomic():
+            # Get or create product
+            product, created = Product.objects.get_or_create(
+                barcode=barcode,
+                defaults={'name': name}
+            )
+            
+            if not created and product.name != name:
+                product.name = name
+                product.save()
+            
+            # Create stock item
+            stock_item = StockItem.objects.create(
+                merchant=merchant_profile,
+                product=product,
+                quantity=quantity,
+                sale_price=price,
+            )
+            
+            # Log the addition
+            InventoryLog.objects.create(
+                merchant=merchant_profile,
+                product=product,
+                action='IN',
+                quantity_changed=quantity,
+                device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
+            )
+        
+        return Response({
+            'id': stock_item.pk,
+            'barcode': barcode,
+            'name': name,
+            'quantity': quantity,
+            'price': price,
+        })
+
     except MerchantProfile.DoesNotExist:
         return Response(
             {'error': 'Merchant profile not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-
-    if request.method == 'GET':
-        serializer = StockItemSerializer(stock_item)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = StockItemSerializer(
-            stock_item,
-            data=request.data,
-            partial=True
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        if serializer.is_valid():
-            old_quantity = stock_item.quantity
-            updated_item = serializer.save()
-
-            # Log the change if quantity changed
-            if old_quantity != updated_item.quantity:
-                action = (
-                    'ADJ' if updated_item.quantity < old_quantity else 'IN'
-                )
-                quantity_change = updated_item.quantity - old_quantity
-
-                InventoryLog.objects.create(
-                    merchant=merchant_profile,
-                    product=stock_item.product,
-                    action=action,
-                    quantity_changed=quantity_change,
-                    source='MANUAL',
-                    device_id='mobile_app'
-                )
-
-            response_serializer = StockItemSerializer(updated_item)
-            return Response(response_serializer.data)
-        else:
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    elif request.method == 'DELETE':
-        # Log the removal
-        InventoryLog.objects.create(
-            merchant=merchant_profile,
-            product=stock_item.product,
-            action='OUT',
-            quantity_changed=-stock_item.quantity,
-            source='MANUAL',
-            device_id='mobile_app'
-        )
-
-        stock_item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def process_scan(request):
+@permission_classes([IsAuthenticated])
+def remove_stock_item(request, item_id):
     """
-    Process barcode scan from Zebra scanner or phone camera
+    Remove quantity from stock item
     """
     try:
         merchant_profile = request.user.merchantprofile
-        serializer = ScanSerializer(data=request.data)
-
-        if serializer.is_valid():
-            barcode = serializer.validated_data['barcode']
-            action = serializer.validated_data['action']
-            source = serializer.validated_data['source']
-            device_id = serializer.validated_data.get(
-                'device_id', 'unknown'
+        
+        try:
+            stock_item = StockItem.objects.get(
+                id=item_id,
+                merchant=merchant_profile
             )
-
-            # Get or create product
-            product, created = Product.objects.get_or_create(
-                barcode=barcode,
-                defaults={
-                    'name': f'Product {barcode}',
-                    'description': f'Auto-created from scan {barcode}'
-                }
-            )
-
-            with transaction.atomic():
-                # Get or create stock item
-                stock_item, created = StockItem.objects.get_or_create(
-                    merchant=merchant_profile,
-                    product=product,
-                    defaults={'quantity': 0}
-                )
-
-                # Update quantity based on action
-                if action == 'IN':
-                    stock_item.quantity += 1
-                    message = f'Stocked in: {barcode}'
-                elif action == 'OUT':
-                    if stock_item.quantity >= 1:
-                        stock_item.quantity -= 1
-                        message = f'Sold: {barcode}'
-                    else:
-                        return Response(
-                            {'error': 'Insufficient stock for this item'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                else:
-                    return Response(
-                        {'error': 'Invalid action'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                stock_item.save()
-
-                # Log the scan
-                qty_change = 1 if action == 'IN' else -1
-                InventoryLog.objects.create(
-                    merchant=merchant_profile,
-                    product=product,
-                    action=action,
-                    quantity_changed=qty_change,
-                    source=source,
-                    device_id=device_id,
-                    timestamp=timezone.now()
-                )
-
-                return Response({
-                    'message': message,
-                    'product': ProductSerializer(product).data,
-                    'stock_item': StockItemSerializer(stock_item).data,
-                    'current_quantity': stock_item.quantity
-                })
-        else:
+        except StockItem.DoesNotExist:
             return Response(
-                serializer.errors,
+                {'error': 'Stock item not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        quantity = int(request.data.get('quantity', 0))
+        
+        if quantity <= 0:
+            return Response(
+                {'error': 'Quantity must be positive'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        if quantity > stock_item.quantity:
+            return Response(
+                {'error': 'Insufficient stock'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        with transaction.atomic():
+            stock_item.quantity -= quantity
+            stock_item.save()
+            
+            # Log the removal
+            InventoryLog.objects.create(
+                merchant=merchant_profile,
+                product=stock_item.product,
+                action='OUT',
+                quantity_changed=-quantity,
+                device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
+            )
+        
+        return Response({
+            'id': stock_item.pk,
+            'remaining_quantity': stock_item.quantity,
+            'removed_quantity': quantity,
+        })
+
+    except MerchantProfile.DoesNotExist:
+        return Response(
+            {'error': 'Merchant profile not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_stock_item(request, item_id):
+    """
+    Update stock item details
+    """
+    try:
+        merchant_profile = request.user.merchantprofile
+        
+        try:
+            stock_item = StockItem.objects.get(
+                id=item_id,
+                merchant=merchant_profile
+            )
+        except StockItem.DoesNotExist:
+            return Response(
+                {'error': 'Stock item not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        quantity = request.data.get('quantity')
+        price = request.data.get('price')
+        
+        with transaction.atomic():
+            if quantity is not None:
+                quantity = int(quantity)
+                old_quantity = stock_item.quantity
+                stock_item.quantity = quantity
+                
+                # Log the change
+                InventoryLog.objects.create(
+                    merchant=merchant_profile,
+                    product=stock_item.product,
+                    action='ADJUST',
+                    quantity_changed=quantity - old_quantity,
+                    device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
+                )
+            
+            if price is not None:
+                stock_item.sale_price = float(price)
+            
+            stock_item.save()
+        
+        return Response({
+            'id': stock_item.pk,
+            'quantity': stock_item.quantity,
+            'price': stock_item.sale_price,
+        })
+
+    except MerchantProfile.DoesNotExist:
+        return Response(
+            {'error': 'Merchant profile not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_stock_items(request):
+    """
+    Get all stock items for merchant
+    """
+    try:
+        merchant_profile = request.user.merchantprofile
+        
+        search = request.GET.get('search', '')
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 20))
+        
+        queryset = StockItem.objects.filter(merchant=merchant_profile)
+        
+        if search:
+            queryset = queryset.filter(
+                Q(product__barcode__icontains=search) |
+                Q(product__name__icontains=search)
+            )
+        
+        queryset = queryset.select_related('product').order_by('-pk')
+        
+        # Pagination
+        start = (page - 1) * page_size
+        end = start + page_size
+        items = queryset[start:end]
+        
+        items_data = []
+        for item in items:
+            items_data.append({
+                'id': item.pk,
+                'barcode': item.product.barcode,
+                'name': item.product.name,
+                'quantity': item.quantity,
+                'price': item.sale_price,
+                'last_updated': item.pk,  # Using pk as placeholder since no updated_at field
+            })
+        
+        return Response({
+            'items': items_data,
+            'page': page,
+            'page_size': page_size,
+            'total': queryset.count(),
+        })
 
     except MerchantProfile.DoesNotExist:
         return Response(
@@ -266,39 +268,22 @@ def inventory_history(request):
         logs = InventoryLog.objects.filter(
             merchant=merchant_profile
         ).select_related('product').order_by('-timestamp')[:100]
-
-        serializer = InventoryLogSerializer(logs, many=True)
-        return Response(serializer.data)
-
-    except MerchantProfile.DoesNotExist:
-        return Response(
-            {'error': 'Merchant profile not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def low_stock_alerts(request):
-    """
-    Get items with low stock (less than 5)
-    """
-    try:
-        merchant_profile = request.user.merchantprofile
-        low_stock_items = StockItem.objects.filter(
-            merchant=merchant_profile,
-            quantity__lt=5
-        ).select_related('product')
-
-        serializer = StockItemSerializer(low_stock_items, many=True)
+        
+        history_data = []
+        for log in logs:
+            history_data.append({
+                'id': log.pk,
+                'product_name': log.product.name,
+                'barcode': log.product.barcode,
+                'action': log.action,
+                'quantity_changed': log.quantity_changed,
+                'device_id': log.device_id,
+                'timestamp': log.timestamp,
+            })
+        
         return Response({
-            'low_stock_items': serializer.data,
-            'count': low_stock_items.count()
+            'history': history_data,
+            'count': len(history_data),
         })
 
     except MerchantProfile.DoesNotExist:
@@ -311,5 +296,3 @@ def low_stock_alerts(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
-

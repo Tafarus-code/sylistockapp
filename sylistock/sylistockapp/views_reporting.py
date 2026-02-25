@@ -1,22 +1,21 @@
-from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Sum
+from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
-from .models import StockItem, InventoryLog, MerchantProfile
-from decimal import Decimal
+from .models import MerchantProfile, InventoryLog
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def sales_report(request):
     """
-    Generate sales report from inventory logs
+    Get sales report for specified period
     """
     try:
         merchant_profile = request.user.merchantprofile
-        days = int(request.GET.get('days', 30))
+        days = int(request.GET.get('days', 7))
         start_date = timezone.now() - timedelta(days=days)
 
         # Get sales (OUT actions) from inventory logs
@@ -49,7 +48,10 @@ def sales_report(request):
             })
 
         # Find most active device
-        most_active = max(device_counts.items(), key=lambda x: x[1])[0] if device_counts else 'none'
+        most_active = (
+            max(device_counts.items(), key=lambda x: x[1])[0] 
+            if device_counts else 'none'
+        )
 
         return Response({
             'total_sales': total_sales,
@@ -60,62 +62,6 @@ def sales_report(request):
             'most_active_source': most_active,
         })
 
-    except MerchantProfile.DoesNotExist:
-        return Response(
-            {'error': 'Merchant profile not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
-@permission_classes([permissions.IsAuthenticated])
-def inventory_value_report(request):
-    """
-    Generate inventory value report
-    """
-    try:
-        merchant_profile = request.user.merchantprofile
-
-        # Calculate total inventory value
-        inventory_items = StockItem.objects.filter(
-            merchant=merchant_profile
-        ).select_related('product')
-
-        total_items = inventory_items.count()
-        total_quantity = (
-            inventory_items.aggregate(Sum('quantity'))[
-                'quantity__sum'
-            ] or 0
-        )
-
-        # Calculate total value (using sale_price as current value)
-        total_value = Decimal('0')
-        inventory_data = []
-
-        for item in inventory_items:
-            unit_price = item.sale_price or item.cost_price or Decimal('0')
-            item_value = unit_price * item.quantity
-            total_value += item_value
-
-            inventory_data.append({
-                'name': item.product.name,
-                'barcode': item.product.barcode,
-                'quantity': item.quantity,
-                'unit_price': float(unit_price),
-                'total_value': float(item_value),
-            })
-
-        return Response({
-            'summary': {
-                'total_items': total_items,
-                'total_quantity': int(total_quantity),
-                'total_value': float(total_value),
-            },
-            'inventory_data': inventory_data,
-        })
 
     except MerchantProfile.DoesNotExist:
         return Response(
@@ -130,45 +76,31 @@ def inventory_value_report(request):
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def merchant_performance(request):
     """
-    Generate merchant performance metrics
+    Get merchant performance metrics
     """
     try:
         merchant_profile = request.user.merchantprofile
-
-        # Get inventory logs for the last 30 days
-        start_date = timezone.now() - timedelta(days=30)
-        logs = InventoryLog.objects.filter(
+        
+        # Get basic metrics
+        total_products = merchant_profile.stockitem_set.count()
+        low_stock_count = merchant_profile.stockitem_set.filter(
+            current_quantity__lte=5
+        ).count()
+        
+        # Get recent activity
+        recent_logs = InventoryLog.objects.filter(
             merchant=merchant_profile,
-            timestamp__gte=start_date
-        )
-
-        # Calculate metrics
-        total_scans = logs.filter(action__in=['IN', 'OUT']).count()
-        manual_entries = logs.filter(source='MANUAL').count()
-        zebra_scans = logs.filter(source='ZEBRA').count()
-        phone_scans = logs.filter(source='PHONE').count()
-
-        most_active = max([
-            ('ZEBRA', zebra_scans),
-            ('PHONE', phone_scans),
-            ('MANUAL', manual_entries),
-        ], key=lambda x: x[1])[0]
-
+            timestamp__gte=timezone.now() - timedelta(days=7)
+        ).count()
+        
         return Response({
-            'period_days': 30,
-            'total_scans': total_scans,
-            'manual_entries': manual_entries,
-            'zebra_scans': zebra_scans,
-            'phone_scans': phone_scans,
-            'scan_sources': {
-                'ZEBRA': zebra_scans,
-                'PHONE': phone_scans,
-                'MANUAL': manual_entries,
-            },
-            'most_active_source': most_active,
+            'total_products': total_products,
+            'low_stock_count': low_stock_count,
+            'recent_activity': recent_logs,
+            'health_score': max(0, 100 - (low_stock_count * 10)),
         })
 
     except MerchantProfile.DoesNotExist:
@@ -181,4 +113,3 @@ def merchant_performance(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
