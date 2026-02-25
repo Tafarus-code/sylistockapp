@@ -29,17 +29,27 @@ class InventoryItem {
     required this.createdAt,
   });
 
+  // Getter for compatibility
+  String get productName => name;
+
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
+    // Handle nested product structure from API
+    final product = json['product'] as Map<String, dynamic>?;
+
     return InventoryItem(
       id: json['id'] as int,
-      barcode: json['barcode'] as String,
-      name: json['name'] as String,
+      barcode: product?['barcode'] as String? ?? json['barcode'] as String,
+      name: product?['name'] as String? ?? json['name'] as String,
       quantity: json['quantity'] as int,
       description: json['description'] as String?,
-      price: json['price'] != null
-          ? (json['price'] as num).toDouble()
-          : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      price: json['cost_price'] != null
+          ? (json['cost_price'] as num).toDouble()
+          : json['price'] != null
+              ? (json['price'] as num).toDouble()
+              : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
     );
   }
 

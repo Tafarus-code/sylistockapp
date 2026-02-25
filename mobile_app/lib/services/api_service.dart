@@ -1,15 +1,19 @@
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/inventory_item.dart';
-import 'local_storage_service.dart';
 
 class ApiService {
   late final Dio _dio;
-  late final LocalStorageService _localStorageService;
-  String get baseUrl => _localStorageService.getApiBaseUrl();
+  static const String _baseUrlKey = 'api_base_url';
 
-  ApiService({
-    LocalStorageService? localStorageService,
-  }) : _localStorageService = localStorageService ?? LocalStorageService() {
+  ApiService() {
+    _initializeDio();
+  }
+
+  Future<void> _initializeDio() async {
+    final prefs = await SharedPreferences.getInstance();
+    final baseUrl = prefs.getString(_baseUrlKey) ?? 'http://localhost:8000/api';
+
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -18,8 +22,7 @@ class ApiService {
         'Content-Type': 'application/json',
       },
     ));
-    
-    // Add interceptors for better error handling
+
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -34,8 +37,10 @@ class ApiService {
     );
   }
 
-  Future<void> updateBaseUrl() async {
-    _dio.options.baseUrl = baseUrl;
+  Future<void> updateBaseUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_baseUrlKey, url);
+    await _initializeDio();
   }
 
   Future<List<InventoryItem>> fetchInventory() async {
@@ -50,7 +55,12 @@ class ApiService {
 
   Future<void> sendBarcode(String barcode) async {
     try {
-      await _dio.post('/inventory/', data: {'barcode': barcode});
+      await _dio.post('/inventory/process-scan/', data: {
+        'barcode': barcode,
+        'action': 'IN',
+        'source': 'mobile_app',
+        'device_id': 'mobile_device',
+      });
     } catch (e) {
       throw Exception('Failed to send barcode: $e');
     }
@@ -60,19 +70,21 @@ class ApiService {
     required String barcode,
     required String name,
     required int quantity,
+    double? price,
   }) async {
     try {
-      final response = await _dio.post(
-        '/inventory/',
-        data: {
+      final response = await _dio.post('/inventory/', data: {
+        'product': {
           'barcode': barcode,
           'name': name,
-          'quantity': quantity,
         },
-      );
+        'quantity': quantity,
+        'cost_price': price,
+        'sale_price': price,
+      });
       return InventoryItem.fromJson(response.data);
     } catch (e) {
-      throw Exception('Failed to add inventory item: $e');
+      throw Exception('Failed to add item: $e');
     }
   }
 
@@ -105,4 +117,3 @@ class ApiService {
     }
   }
 }
-

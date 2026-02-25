@@ -40,6 +40,10 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 # Parse ALLOWED_HOSTS from environment or use default
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Add Railway specific hosts
+if 'RAILWAY_ENVIRONMENT' in os.environ or 'RAILWAY_SERVICE_NAME' in os.environ:
+    ALLOWED_HOSTS.append('.railway.app')
+
 # Database configuration for production
 if 'DATABASE_URL' in os.environ:
     DATABASES = {

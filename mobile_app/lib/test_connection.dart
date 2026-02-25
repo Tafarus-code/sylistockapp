@@ -47,8 +47,9 @@ class TestApp extends StatelessWidget {
     const SnackBar(content: Text('Testing connection...')),
   );
   
-  String result = 'Testing...';
-  
+  String dialogTitle = 'Connection Test';
+  String dialogContent = 'Testing...';
+
   try {
     print('Making request to http://127.0.0.1:8000/inventory/');
     final dio = Dio();
@@ -59,12 +60,14 @@ class TestApp extends StatelessWidget {
     print('Response received: ${response.statusCode}');
     print('Response data: ${response.data}');
     
-    result = 'SUCCESS!\n\nStatus: ${response.statusCode}\n\nData: ${response.data}';
+    dialogTitle = 'SUCCESS! Status: ${response.statusCode}';
+    dialogContent = 'Django connection working!\n\nData: ${response.data}';
   } catch (e, stackTrace) {
     print('ERROR occurred: $e');
     print('Stack trace: $stackTrace');
     
-    result = 'ERROR!\n\n$e\n\nTroubleshooting:\n• Is Django server running on port 8000?\n• Check browser console for errors\n• Try opening http://127.0.0.1:8000/inventory/ in browser';
+    dialogTitle = 'Connection Failed';
+    dialogContent = 'ERROR!\n\n$e\n\nTroubleshooting:\n• Is Django server running on port 8000?\n• Check browser console for errors\n• Try opening http://127.0.0.1:8000/inventory/ in browser';
   }
   
   print('=== TEST COMPLETE! ===');
@@ -74,15 +77,16 @@ class TestApp extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('SUCCESS! Status: 200'),
-        content: Text('Django connection working!\n\nReceived 2 items from API.'),
+        title: Text(dialogTitle),
+        content: Text(dialogContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
+  }
   }
 }
