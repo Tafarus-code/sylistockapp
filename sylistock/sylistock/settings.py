@@ -40,6 +40,19 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 # Parse ALLOWED_HOSTS from environment or use default
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Database configuration for production
+if 'DATABASE_URL' in os.environ:
+    DATABASES = {
+        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -91,44 +104,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'sylistock.wsgi.application'
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-# Prefer a single DATABASE_URL env var but accept common Render
-# names as fallbacks.
-_db_env_candidates = [
-    'DATABASE_URL',
-    'RENDER_DATABASE_URL',
-    'RENDER_INTERNAL_DATABASE_URL',
-    'EXTERNAL_DATABASE_URL',
-    'RENDER_EXTERNAL_DATABASE_URL',
-]
-_db_url = None
-for _name in _db_env_candidates:
-    if os.getenv(_name):
-        _db_url = os.getenv(_name)
-        break
-
-if _db_url:
-    # Use dj_database_url to parse the provided URL. Keep connection
-    # health checks and reasonable conn_max_age for production.
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=_db_url,
-            conn_max_age=600,
-            conn_health_checks=True,
-            ssl_require=True,
-        )
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
