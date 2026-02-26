@@ -1,20 +1,50 @@
 from django.http import JsonResponse, HttpResponse
+import os
 
 
 def api_home(request):
     """
-    API Home endpoint - provides API information with full UI
+    API Home endpoint - serves Flutter app as homepage
     """
-    # Check if request wants HTML or JSON
-    if 'text/html' in request.META.get('HTTP_ACCEPT', ''):
-        # Return HTML UI with Flutter app link
-        template_content = """
+    # Check if request explicitly wants JSON (API clients)
+    accept_header = request.META.get('HTTP_ACCEPT', '')
+    wants_json = (
+        'application/json' in accept_header or
+        request.path.endswith('.json') or
+        'api' in request.path
+    )
+
+    if not wants_json:
+        # Serve Flutter app as homepage
+        flutter_index_path = os.path.join(
+            os.path.dirname(__file__),
+            'static',
+            'flutter',
+            'index.html'
+        )
+
+        try:
+            with open(flutter_index_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Update base href for proper asset loading
+            content = content.replace(
+                '<base href="/">',
+                '<base href="/static/flutter/">'
+            )
+
+            return HttpResponse(content, content_type='text/html')
+
+        except FileNotFoundError:
+            # Fallback to simple HTML if Flutter app not found
+            return HttpResponse(
+                """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SylisStock API</title>
+    <title>SylisStock - Inventory Management</title>
     <style>
         * {
             margin: 0;
@@ -55,7 +85,7 @@ def api_home(request):
             margin-bottom: 30px;
         }
 
-        .api-info {
+        .message {
             background: #f8f9fa;
             border-radius: 10px;
             padding: 25px;
@@ -63,60 +93,7 @@ def api_home(request):
             text-align: left;
         }
 
-        .endpoint-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .endpoint-item {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .endpoint-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            border-color: #667eea;
-        }
-
-        .endpoint-path {
-            font-weight: bold;
-            color: #667eea;
-            font-size: 1.1rem;
-        }
-
-        .endpoint-description {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .status {
-            display: inline-block;
-            background: #28a745;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: bold;
-            margin-top: 20px;
-        }
-
-        .version {
-            background: #17a2b8;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.9rem;
-            margin-bottom: 20px;
-        }
-
-        .flutter-button {
+        .build-button {
             display: inline-block;
             background: linear-gradient(45deg, #02569B, #0175C2);
             color: white;
@@ -129,7 +106,7 @@ def api_home(request):
             box-shadow: 0 4px 15px rgba(2, 86, 155, 0.3);
         }
 
-        .flutter-button:hover {
+        .build-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(2, 86, 155, 0.4);
         }
@@ -149,70 +126,50 @@ def api_home(request):
             .logo {
                 font-size: 2rem;
             }
-
-            .endpoint-item {
-                flex-direction: column;
-                align-items: flex-start;
-                text-align: center;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">📦 SylisStock</div>
-        <h1 class="title">Inventory Management API</h1>
+        <h1 class="title">Inventory Management</h1>
 
-        <div class="version">Version 1.0.0</div>
-
-        <div class="api-info">
-            <h2 style="margin-bottom: 20px; color: #333;">
-                🔗 Available Endpoints
+        <div class="message">
+            <h2 style="color: #333; margin-bottom: 15px;">
+                🚀 Flutter App Building...
             </h2>
-            <ul class="endpoint-list">
-                <li class="endpoint-item">
-                    <span class="endpoint-path">/inventory/</span>
-                    <span class="endpoint-description">Stock management</span>
-                </li>
-                <li class="endpoint-item">
-                    <span class="endpoint-path">/admin/</span>
-                    <span class="endpoint-description">Admin panel</span>
-                </li>
-                <li class="endpoint-item">
-                    <span class="endpoint-path">/auth/</span>
-                    <span class="endpoint-description">Authentication</span>
-                </li>
-                <li class="endpoint-item">
-                    <span class="endpoint-path">/inventory/docs/</span>
-                    <span class="endpoint-description">API documentation</span>
-                </li>
-            </ul>
+            <p style="margin-bottom: 15px;">
+                The Flutter mobile app is being prepared for deployment.
+            </p>
+            <p style="margin-bottom: 20px;">
+                Please build the Flutter app to see the full interface:
+            </p>
+            <pre style="background: #f1f3f4; color: #e83e8c; padding: 15px;
+                       border-radius: 5px; text-align: left;">
+cd mobile_app
+flutter build web
+            </pre>
+            <div style="margin-top: 20px;">
+                <a href="/static/flutter/" class="build-button">
+                    🔨 Build Flutter App
+                </a>
+            </div>
         </div>
-
-        <div style="margin: 30px 0;">
-            <h3 style="color: #333; margin-bottom: 15px;">
-                🚀 Launch Mobile App
-            </h3>
-            <a href="/static/flutter/index.html" class="flutter-button">
-                📱 Open Flutter App
-            </a>
-        </div>
-
-        <div class="status">🟢 API Active</div>
 
         <div class="footer">
-            <p>🚀 SylisStock API - Powered by Django REST Framework</p>
-            <p>© 2024 SylisStock. All rights reserved.</p>
+            <p>🚀 SyliStock - Flutter + Django REST API</p>
+            <p>© 2024 SyliStock. All rights reserved.</p>
         </div>
     </div>
 </body>
 </html>
-        """
-        return HttpResponse(template_content, content_type='text/html')
+                """,
+                content_type='text/html'
+            )
     else:
         # Return JSON response for API consumers
         return JsonResponse({
-            'message': 'SylisStock API',
+            'message': 'SyliStock API',
             'version': '1.0.0',
             'endpoints': {
                 'inventory': '/inventory/',
