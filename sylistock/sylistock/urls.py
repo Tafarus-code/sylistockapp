@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 import sys
 import os
 
@@ -34,14 +36,14 @@ if project_root not in sys.path:
 # Try different import paths for Railway deployment
 try:
     # Try project root first (Railway: sylistockapp/views_home.py)
-    from views_home import api_home
+    from views_home import api_home, api_info
 except ImportError:
     try:
         # Try sylistockapp directory (local development)
-        from sylistockapp.views_home import api_home
+        from sylistockapp.views_home import api_home, api_info
     except ImportError:
         # Try relative import as last resort
-        from .views_home import api_home
+        from .views_home import api_home, api_info
 
 # Import Flutter app view
 try:
@@ -53,7 +55,8 @@ except ImportError:
         from .views_flutter import flutter_app
 
 urlpatterns = [
-    path('', api_home, name='api-home'),
+    path('', api_home, name='home'),
+    path('api/', api_info, name='api-info'),
     path('app/', flutter_app, name='flutter-app'),
     path('admin/', admin.site.urls),
 
@@ -63,3 +66,24 @@ urlpatterns = [
     # Optional: DRF browsable API login (useful for testing in browser)
     path('auth/', include('rest_framework.urls')),
 ]
+
+# Serve Flutter assets from root URL for development
+if settings.DEBUG:
+    flutter_static_path = os.path.join(
+        settings.BASE_DIR, 'sylistockapp', 'static', 'flutter'
+    )
+    urlpatterns += static('flutter.js', document_root=flutter_static_path)
+    urlpatterns += static('main.dart.js', document_root=flutter_static_path)
+    urlpatterns += static(
+        'assets/',
+        document_root=os.path.join(flutter_static_path, 'assets')
+    )
+    urlpatterns += static(
+        'canvaskit/',
+        document_root=os.path.join(flutter_static_path, 'canvaskit')
+    )
+    urlpatterns += static(
+        'icons/',
+        document_root=os.path.join(flutter_static_path, 'icons')
+    )
+    urlpatterns += static('favicon.png', document_root=flutter_static_path)
