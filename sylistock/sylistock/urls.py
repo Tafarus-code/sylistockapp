@@ -69,9 +69,21 @@ urlpatterns = [
 
 # Serve Flutter assets from root URL for development
 if settings.DEBUG:
-    urlpatterns += static('flutter.js', document_root=os.path.join(settings.BASE_DIR, 'sylistockapp', 'static', 'flutter'))
-    urlpatterns += static('main.dart.js', document_root=os.path.join(settings.BASE_DIR, 'sylistockapp', 'static', 'flutter'))
-    urlpatterns += static('assets/', document_root=os.path.join(settings.BASE_DIR, 'sylistockapp', 'static', 'flutter', 'assets'))
-    urlpatterns += static('canvaskit/', document_root=os.path.join(settings.BASE_DIR, 'sylistockapp', 'static', 'flutter', 'canvaskit'))
-    urlpatterns += static('icons/', document_root=os.path.join(settings.BASE_DIR, 'sylistockapp', 'static', 'flutter', 'icons'))
-    urlpatterns += static('favicon.png', document_root=os.path.join(settings.BASE_DIR, 'sylistockapp', 'static', 'flutter'))
+    flutter_static_path = os.path.join(
+        settings.BASE_DIR, 'sylistockapp', 'static', 'flutter'
+    )
+    urlpatterns += static('flutter.js', document_root=flutter_static_path)
+    urlpatterns += static('main.dart.js', document_root=flutter_static_path)
+    urlpatterns += static(
+        'assets/',
+        document_root=os.path.join(flutter_static_path, 'assets')
+    )
+    urlpatterns += static(
+        'canvaskit/',
+        document_root=os.path.join(flutter_static_path, 'canvaskit')
+    )
+    urlpatterns += static(
+        'icons/',
+        document_root=os.path.join(flutter_static_path, 'icons')
+    )
+    urlpatterns += static('favicon.png', document_root=flutter_static_path)
