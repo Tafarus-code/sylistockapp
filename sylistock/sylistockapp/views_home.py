@@ -13,7 +13,7 @@ def api_home(request):
         request.path.endswith('.json') or
         'api' in request.path
     )
-    
+
     if not wants_json:
         # Serve Flutter app as homepage
         flutter_index_path = os.path.join(
@@ -144,7 +144,8 @@ def api_home(request):
             <p style="margin-bottom: 20px;">
                 Please build the Flutter app to see the full interface:
             </p>
-            <pre style="background: #f1f3f4; color: #e83e8c; padding: 15px; border-radius: 5px; text-align: left;">
+            <pre style="background: #f1f3f4; color: #e83e8c; padding: 15px;
+                       border-radius: 5px; text-align: left;">
 cd mobile_app
 flutter build web
             </pre>
