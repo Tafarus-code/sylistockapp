@@ -200,6 +200,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8080",
 ]
 
+# Add Railway URLs to CORS allowed origins
+if 'RAILWAY_ENVIRONMENT' in os.environ or 'RAILWAY_SERVICE_NAME' in os.environ:
+    CORS_ALLOWED_ORIGINS.append("https://*.railway.app")
+
 # Allow all origins for development
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 

@@ -12,7 +12,22 @@ class ApiService {
 
   Future<void> _initializeDio() async {
     final prefs = await SharedPreferences.getInstance();
-    final baseUrl = prefs.getString(_baseUrlKey) ?? 'http://localhost:8000/api';
+    
+    // Auto-detect Railway deployment URL
+    String defaultUrl = 'http://localhost:8000';
+    try {
+      // Check if we're running on Railway (web deployment)
+      final currentUrl = Uri.base.toString();
+      if (currentUrl.contains('railway.app')) {
+        // Extract the Railway URL and use it for API calls
+        final uri = Uri.parse(currentUrl);
+        defaultUrl = '${uri.scheme}://${uri.host}';
+      }
+    } catch (e) {
+      print('Could not detect deployment URL: $e');
+    }
+    
+    final baseUrl = prefs.getString(_baseUrlKey) ?? '$defaultUrl/inventory';
 
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
