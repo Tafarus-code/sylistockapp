@@ -80,3 +80,4 @@ dmypy.json
 # Django migrations (optional - uncomment if you want to exclude migrations)
 # */migrations/0*.py
 # !*/migrations/__init__.py
+/sylistock/sylistockapp/static/flutter/.last_build_id
