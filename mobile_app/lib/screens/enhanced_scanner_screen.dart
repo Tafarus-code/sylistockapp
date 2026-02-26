@@ -1,25 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../bloc/inventory_bloc.dart';
-import '../bloc/inventory_event.dart';
-import '../bloc/inventory_state.dart';
+import '../providers/inventory_provider.dart';
 import '../models/inventory_item.dart';
-import '../services/enhanced_scanner_service.dart';
+import '../services/optimized_datawedge_service.dart';
 import 'item_details_screen.dart';
 
-class EnhancedScannerScreen extends StatefulWidget {
+class EnhancedScannerScreen extends ConsumerStatefulWidget {
   const EnhancedScannerScreen({super.key});
 
   @override
-  State<EnhancedScannerScreen> createState() => _EnhancedScannerScreenState();
+  ConsumerState<EnhancedScannerScreen> createState() => _EnhancedScannerScreenState();
 }
 
-class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
+class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
   bool _isOnline = true;
   bool _showAdvancedOptions = false;
-  int _pendingSyncCount = 0;
-  DateTime? _lastSyncTime;
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _barcodeController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController(text: '1');
@@ -29,12 +25,18 @@ class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
   void initState() {
     super.initState();
     _initializeEnhancedScanner();
+    // Initialize with local data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      InventoryService.initializeWithLocalData(ref);
+    });
   }
 
   Future<void> _initializeEnhancedScanner() async {
-    await EnhancedScannerService.initialize();
+    await OptimizedDataWedgeService.instance.initialize();
+    await OptimizedDataWedgeService.instance.optimizeFor4G();
+    await OptimizedDataWedgeService.instance.enableBackgroundSync();
+    await OptimizedDataWedgeService.instance.optimizeBatteryUsage();
     _checkConnectivity();
-    _loadPendingSyncCount();
   }
 
   void _checkConnectivity() async {
@@ -44,88 +46,287 @@ class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
     });
   }
 
-  Future<void> _loadPendingSyncCount() async {
-    final queue = await EnhancedScannerService.getQueue();
-    final lastSync = await EnhancedScannerService.getLastSyncTime();
-    setState(() {
-      _pendingSyncCount = queue.length;
-      _lastSyncTime = lastSync;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final inventoryState = ref.watch(inventoryProvider);
+    final pendingSyncCount = ref.watch(pendingSyncCountProvider);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
-        title: const Text('Sylistock Pro'),
-        backgroundColor: const Color(0xFF2563EB),
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('Krediti-GN Scanner'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          IconButton(
-            icon: Icon(
-              _isOnline ? Icons.cloud_done : Icons.cloud_off,
-              color: Colors.white,
+          // Online/Offline status indicator
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: _isOnline ? Colors.green : Colors.red,
+              borderRadius: BorderRadius.circular(20),
             ),
-            onPressed: _showSyncDialog,
-            tooltip: 'Sync Status',
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isOnline ? Icons.wifi : Icons.wifi_off,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _isOnline ? 'Online' : 'Offline',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            itemBuilder: (context) => [
-              const PopupMenuItem<String>(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, color: Colors.black54),
-                    const SizedBox(width: 8),
-                    const Text('Settings'),
-                  ],
-                ),
+          // Pending sync indicator
+          if (pendingSyncCount > 0)
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(20),
               ),
-              const PopupMenuItem<String>(
-                value: 'history',
-                child: Row(
-                  children: [
-                    Icon(Icons.history, color: Colors.black54),
-                    const SizedBox(width: 8),
-                    const Text('Scan History'),
-                  ],
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.sync,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$pendingSyncCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-              const PopupMenuItem<String>(
-                value: 'low_stock',
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    const Text('Low Stock Alerts'),
-                  ],
-                ),
-              ),
-            ],
-            onSelected: _handleMenuSelection,
-          ),
+            ),
         ],
       ),
       body: Column(
         children: [
-          _buildStatusCard(),
-          const SizedBox(height: 8),
-          _buildQuickActions(),
-          const SizedBox(height: 16),
-          Expanded(
+          // Quick actions panel
+          Container(
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                if (_showAdvancedOptions) ...[
-                  Expanded(flex: 2, child: _buildManualEntry()),
-                  const SizedBox(width: 8),
-                  Expanded(child: _buildInventoryList()),
-                ] else ...[
-                  Expanded(child: _buildInventoryList()),
-                ],
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _toggleAdvancedOptions(),
+                    icon: Icon(_showAdvancedOptions ? Icons.expand_less : Icons.expand_more),
+                    label: Text(_showAdvancedOptions ? 'Simple' : 'Advanced'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => InventoryService.refreshFromServer(ref),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Sync'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                    foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                  ),
+                ),
               ],
+            ),
+          ),
+          
+          // Advanced options panel
+          if (_showAdvancedOptions) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _barcodeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Manual Barcode Entry',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.qr_code_scanner),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _quantityController,
+                          decoration: const InputDecoration(
+                            labelText: 'Quantity',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.inventory),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _priceController,
+                          decoration: const InputDecoration(
+                            labelText: 'Price',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.attach_money),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _addManualItem(),
+                      child: const Text('Add Item Manually'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          
+          // Search bar
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search inventory...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+              ),
+              onChanged: (value) {
+                // Implement search functionality
+              },
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Inventory list
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                final items = InventoryService.currentItems;
+                if (items.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No items in inventory',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Start scanning barcodes to add items',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          child: Icon(
+                            Icons.inventory,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        title: Text(item.name),
+                        subtitle: Text('Barcode: ${item.barcode}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Qty: ${item.quantity}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                            PopupMenuButton(
+                              itemBuilder: (context) => [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: const [
+                                      Icon(Icons.edit),
+                                      SizedBox(width: 8),
+                                      Text('Edit'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: const [
+                                      Icon(Icons.delete),
+                                      SizedBox(width: 8),
+                                      Text('Delete'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              onSelected: (value) => _handleItemAction(item, value as String),
+                            ),
+                          ],
+                        ),
+                        onTap: () => _navigateToItemDetails(item),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
@@ -133,532 +334,79 @@ class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FloatingActionButton.extended(
-            heroTag: "manual_entry",
-            onPressed: _showManualEntryDialog,
-            icon: const Icon(Icons.keyboard),
-            label: const Text('Add Item'),
-            backgroundColor: Colors.orange,
+          // Dashboard button
+          FloatingActionButton(
+            onPressed: () => Navigator.pushNamed(context, '/dashboard'),
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            child: const Icon(Icons.dashboard),
+            heroTag: "dashboard",
           ),
-          const SizedBox(height: 8),
-          if (_pendingSyncCount > 0)
-            FloatingActionButton.extended(
-              heroTag: "sync_queue",
-              onPressed: _syncPendingItems,
-              icon: const Icon(Icons.sync),
-              label: const Text('Sync Queue'),
-              backgroundColor: Colors.red,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusCard() {
-    return Card(
-      margin: const EdgeInsets.all(8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _isOnline ? Icons.wifi : Icons.wifi_off,
-                  color: _isOnline ? Colors.green : Colors.orange,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _isOnline ? 'Connected' : 'Offline Mode',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _isOnline ? Colors.green : Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (_pendingSyncCount > 0)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.pending, color: Colors.red),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$_pendingSyncCount items pending sync',
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            if (_lastSyncTime != null)
-              Text(
-                'Last sync: ${_formatDateTime(_lastSyncTime!)}',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Quick Actions',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.camera_alt,
-                    label: 'Camera Scan',
-                    color: Colors.blue,
-                    onTap: () => _showCameraScanner(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.keyboard,
-                    label: 'Manual Entry',
-                    color: Colors.orange,
-                    onTap: _showManualEntryDialog,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.sync,
-                    label: 'Sync Now',
-                    color: Colors.green,
-                    onTap: _syncPendingItems,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.tune,
-                    label: _showAdvancedOptions ? 'Simple View' : 'Advanced Options',
-                    color: Colors.purple,
-                    onTap: () {
-                      setState(() {
-                        _showAdvancedOptions = !_showAdvancedOptions;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      height: 50,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildManualEntry() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Quick Add Item',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _barcodeController,
-              decoration: const InputDecoration(
-                labelText: 'Barcode *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.qr_code),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _quantityController,
-              decoration: const InputDecoration(
-                labelText: 'Quantity *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.inventory),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _priceController,
-              decoration: const InputDecoration(
-                labelText: 'Price (optional)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.attach_money),
-              ),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _addInventoryItem,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'Add Item',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInventoryList() {
-    return BlocBuilder<InventoryBloc, InventoryState>(
-      builder: (context, state) {
-        if (state is InventoryLoading) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (state is InventoryLoaded) {
-          final items = _searchController.text.isEmpty
-              ? state.items
-              : state.items.where((item) =>
-                  item.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-                  item.barcode.toLowerCase().contains(_searchController.text.toLowerCase())
-                ).toList();
-
-          if (items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _searchController.text.isEmpty ? Icons.inventory : Icons.search_off,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _searchController.text.isEmpty ? 'No inventory items' : 'No items found',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search items...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async => _refreshInventory(),
-                  child: ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: const Color(0xFF2563EB),
-                            child: Text(
-                              '${item.quantity}',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          title: Text(
-                            item.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text('Barcode: ${item.barcode}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (item.price != null)
-                                Text(
-                                  '\$${item.price!.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF16A34A),
-                                  ),
-                                ),
-                              IconButton(
-                                icon: const Icon(Icons.edit),
-                                onPressed: () => _editItem(item),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () => _deleteItem(item),
-                              ),
-                            ],
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ItemDetailsScreen(item: item),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          );
-        } else if (state is InventoryError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text(state.message),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _refreshInventory,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        }
-        return const Center(child: Text('Press refresh to load inventory'));
-      },
-    );
-  }
-
-  void _handleMenuSelection(String value) {
-    switch (value) {
-      case 'settings':
-        Navigator.pushNamed(context, '/settings');
-        break;
-      case 'history':
-        _showScanHistory();
-        break;
-      case 'low_stock':
-        _showLowStockAlerts();
-        break;
-    }
-  }
-
-  void _showCameraScanner() {
-    // Implement camera scanner
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Camera scanner feature coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
-
-  void _showManualEntryDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Inventory Item'),
-        content: SizedBox(
-          width: 300,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _barcodeController,
-                decoration: const InputDecoration(
-                  labelText: 'Barcode *',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _quantityController,
-                decoration: const InputDecoration(
-                  labelText: 'Quantity *',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Price',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (_barcodeController.text.trim().isNotEmpty) {
-                Navigator.pop(context);
-                _addInventoryItem();
-              }
-            },
-            child: const Text('Add'),
+          const SizedBox(height: 16),
+          // Scanner button
+          FloatingActionButton(
+            onPressed: () => _startScanning(),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: const Icon(Icons.qr_code_scanner),
+            heroTag: "scanner",
           ),
         ],
       ),
     );
   }
 
-  void _addInventoryItem() async {
+  void _toggleAdvancedOptions() {
+    setState(() {
+      _showAdvancedOptions = !_showAdvancedOptions;
+    });
+  }
+
+  void _addManualItem() async {
     final barcode = _barcodeController.text.trim();
     final quantity = int.tryParse(_quantityController.text) ?? 1;
     final price = double.tryParse(_priceController.text);
 
     if (barcode.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a barcode'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Please enter a barcode')),
       );
       return;
     }
 
-    try {
-      final result = await EnhancedScannerService.addInventoryItem(
-        barcode: barcode,
-        name: 'Product $barcode', // Default name
-        quantity: quantity,
-        price: price,
-      );
+    final item = InventoryItem(
+      id: DateTime.now().millisecondsSinceEpoch,
+      barcode: barcode,
+      name: 'Manual Entry',
+      quantity: quantity,
+      price: price,
+      createdAt: DateTime.now(),
+    );
 
-      if (result['success']) {
-        _barcodeController.clear();
-        _quantityController.clear();
-        _priceController.clear();
-        _refreshInventory();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _editItem(InventoryItem item) {
-    // Implement item editing
+    await InventoryService.addItem(ref, item);
+    
+    _clearManualEntryFields();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit feature coming soon!'),
-        backgroundColor: Colors.orange,
-      ),
+      const SnackBar(content: Text('Item added successfully')),
     );
   }
 
-  void _deleteItem(InventoryItem item) {
+  void _clearManualEntryFields() {
+    _barcodeController.clear();
+    _quantityController.text = '1';
+    _priceController.clear();
+  }
+
+  void _handleItemAction(InventoryItem item, String action) async {
+    switch (action) {
+      case 'edit':
+        _navigateToItemDetails(item);
+        break;
+      case 'delete':
+        _confirmDelete(item);
+        break;
+    }
+  }
+
+  void _confirmDelete(InventoryItem item) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -669,18 +417,14 @@ class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () {
+          TextButton(
+            onPressed: () async {
               Navigator.pop(context);
-              // Implement delete functionality
+              await InventoryService.deleteItem(ref, item.id);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Delete feature coming soon!'),
-                  backgroundColor: Colors.orange,
-                ),
+                const SnackBar(content: Text('Item deleted')),
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -688,132 +432,27 @@ class _EnhancedScannerScreenState extends State<EnhancedScannerScreen> {
     );
   }
 
-  void _refreshInventory() {
-    context.read<InventoryBloc>().add(LoadInventoryEvent());
-  }
-
-  void _syncPendingItems() async {
-    if (!_isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot sync while offline'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Syncing Queue'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            const Text('Syncing pending items...'),
-          ],
-        ),
+  void _navigateToItemDetails(InventoryItem item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ItemDetailsScreen(item: item),
       ),
     );
+  }
 
+  Future<void> _startScanning() async {
     try {
-      final result = await EnhancedScannerService.syncQueue();
-      Navigator.pop(context);
-
-      if (result['success']) {
-        _loadPendingSyncCount(); // Refresh count
-        _refreshInventory();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Synced ${result['synced_count']} items. ${result['failed_count']} failed.',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sync failed: ${result['error']}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      Navigator.pop(context);
+      await OptimizedDataWedgeService.instance.startScanning((barcode) {
+        InventoryService.processBarcode(ref, barcode);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sync error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Scanner started - point at barcode')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to start scanner: $e')),
       );
     }
-  }
-
-  void _showSyncDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sync Status'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Status: ${_isOnline ? 'Online' : 'Offline'}'),
-            const SizedBox(height: 8),
-            if (_lastSyncTime != null)
-              Text('Last sync: ${_formatDateTime(_lastSyncTime!)}'),
-            if (_pendingSyncCount > 0)
-              Text('Pending items: $_pendingSyncCount'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
-                ),
-                if (_pendingSyncCount > 0)
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _syncPendingItems();
-                    },
-                    child: const Text('Sync Now'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showScanHistory() {
-    // Implement scan history
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Scan history feature coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
-
-  void _showLowStockAlerts() {
-    // Implement low stock alerts
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Low stock alerts feature coming soon!'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }

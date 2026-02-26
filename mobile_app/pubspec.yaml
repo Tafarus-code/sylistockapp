@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  flutter_bloc: ^8.1.0
+  flutter_riverpod: ^3.0.0
   flutter_datawedge: ^3.2.0
   device_info_plus: ^10.1.0
   mobile_scanner: ^5.0.0 # For the phone camera fallback
@@ -21,6 +21,7 @@ dependencies:
   connectivity_plus: ^5.0.2
   shared_preferences: ^2.2.2
   url_launcher: ^6.2.4
+  what3words: ^3.2.0
   file_picker: ^8.0.0
   camera: ^0.10.5
   permission_handler: ^11.0.1
@@ -31,7 +32,6 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.7
-  bloc_test: ^9.1.6
   mockito: ^5.4.4
 
 flutter:
