@@ -85,7 +85,8 @@ def api_home(request):
             cd mobile_app<br>
             flutter build web<br>
             cd ..<br>
-            xcopy "mobile_app\\build\\web" "sylistock\\sylistockapp\\static\\flutter"\n            /E /Y /Q
+            xcopy "mobile_app\\build\\web"<br>\n
+            "sylistock\\sylistockapp\\static\\flutter" /E /Y /Q
         </div>
     </div>
 </body>
