@@ -22,6 +22,29 @@ from .views_bulk_operations import (
     export_inventory,
     bulk_update_inventory,
 )
+from .views_kyc import (
+    initiate_kyc,
+    upload_kyc_document,
+    add_bank_account,
+    perform_compliance_checks,
+    evaluate_kyc_application,
+    get_kyc_status,
+    get_kyc_documents,
+    get_bank_accounts,
+    get_compliance_checks,
+)
+from .views_insurance import (
+    calculate_premium,
+    assess_risk,
+    create_insurance_policy,
+    submit_claim,
+    process_claim,
+    get_policy_details,
+    get_merchant_policies,
+    get_policy_claims,
+    get_policy_premiums,
+    get_merchant_risk_assessment,
+)
 
 urlpatterns = [
     # Stock management
@@ -48,4 +71,27 @@ urlpatterns = [
     path('bulk/import/', bulk_import_inventory, name='bulk-import'),
     path('bulk/export/', export_inventory, name='bulk-export'),
     path('bulk/update/', bulk_update_inventory, name='bulk-update'),
+
+    # KYC (Know Your Customer)
+    path('kyc/initiate/', initiate_kyc, name='kyc-initiate'),
+    path('kyc/upload-document/', upload_kyc_document, name='kyc-upload-document'),
+    path('kyc/add-bank-account/', add_bank_account, name='kyc-add-bank-account'),
+    path('kyc/compliance-checks/', perform_compliance_checks, name='kyc-compliance-checks'),
+    path('kyc/evaluate/', evaluate_kyc_application, name='kyc-evaluate'),
+    path('kyc/status/', get_kyc_status, name='kyc-status'),
+    path('kyc/documents/', get_kyc_documents, name='kyc-documents'),
+    path('kyc/bank-accounts/', get_bank_accounts, name='kyc-bank-accounts'),
+    path('kyc/compliance/', get_compliance_checks, name='kyc-compliance'),
+
+    # Insurance
+    path('insurance/calculate-premium/', calculate_premium, name='insurance-calculate-premium'),
+    path('insurance/assess-risk/', assess_risk, name='insurance-assess-risk'),
+    path('insurance/create-policy/', create_insurance_policy, name='insurance-create-policy'),
+    path('insurance/submit-claim/', submit_claim, name='insurance-submit-claim'),
+    path('insurance/process-claim/', process_claim, name='insurance-process-claim'),
+    path('insurance/policy-details/', get_policy_details, name='insurance-policy-details'),
+    path('insurance/merchant-policies/', get_merchant_policies, name='insurance-merchant-policies'),
+    path('insurance/policy-claims/', get_policy_claims, name='insurance-policy-claims'),
+    path('insurance/policy-premiums/', get_policy_premiums, name='insurance-policy-premiums'),
+    path('insurance/risk-assessment/', get_merchant_risk_assessment, name='insurance-risk-assessment'),
 ]
