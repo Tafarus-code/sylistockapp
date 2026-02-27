@@ -6,11 +6,9 @@ set -o errexit
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
-# Build Flutter web app
-echo "Building Flutter web app..."
-cd mobile_app
-flutter build web --base-href "/app/"
-cd ..
+# Note: Flutter app should be pre-built locally before deployment
+# Run these commands locally before pushing to Railway:
+# cd mobile_app && flutter build web --base-href "/app/" && cd ..
 
 # Collect static assets and run database migrations
 echo "Collecting Django static files..."
