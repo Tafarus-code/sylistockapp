@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
-import '../screens/enhanced_scanner_screen.dart';
+import '../screens/inventory/enhanced_scanner_screen.dart';
+import '../screens/inventory/category_test_screen.dart';
 import '../screens/bankability_dashboard_screen.dart';
 import '../screens/kyc/kyc_dashboard_screen.dart';
 import '../screens/insurance/insurance_dashboard_screen.dart';
@@ -253,9 +254,9 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _navigateToInventory() {
-    // TODO: Navigate to inventory screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Inventory screen coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CategoryTestScreen()),
     );
   }
 
