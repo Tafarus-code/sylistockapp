@@ -19,7 +19,11 @@ def flutter_app(request):
             content = f.read()
 
         # Check if we are in production (Railway) or development
-        if 'RAILWAY_ENVIRONMENT' in os.environ or 'RAILWAY_SERVICE_NAME' in os.environ:
+        is_railway = (
+            'RAILWAY_ENVIRONMENT' in os.environ or
+            'RAILWAY_SERVICE_NAME' in os.environ
+        )
+        if is_railway:
             # Production: Use absolute path for Railway
             base_href = "/static/flutter/"
         else:

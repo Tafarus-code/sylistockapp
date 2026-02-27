@@ -90,3 +90,4 @@ if settings.DEBUG:
 else:
     # Production: Static files are served by WhiteNoise middleware
     # No need for explicit URL patterns in production
+    pass
