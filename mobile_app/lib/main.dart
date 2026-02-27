@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'theme/app_theme.dart';
 import 'widgets/main_navigation.dart';
-import 'screens/enhanced_scanner_screen.dart';
+import 'screens/inventory/enhanced_scanner_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/bankability_dashboard_screen.dart';
 import 'providers/inventory_provider.dart';
@@ -11,7 +11,9 @@ import 'services/local_storage_service.dart';
 import 'services/bankability_engine.dart';
 import 'services/what3words_service.dart';
 import 'services/network_optimization_service.dart';
+import 'services/enhanced_inventory_service.dart';
 import 'models/inventory_item.dart';
+import 'models/enhanced_inventory_item.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +22,12 @@ void main() async {
     // Initialize Hive
     await Hive.initFlutter();
     Hive.registerAdapter(InventoryItemAdapter());
+    Hive.registerAdapter(EnhancedInventoryItemAdapter());
+    Hive.registerAdapter(InventoryCategoryAdapter());
+    
+    // Initialize enhanced inventory service
+    final enhancedInventoryService = EnhancedInventoryService();
+    await enhancedInventoryService.initialize();
     
     // Initialize local storage
     final localStorageService = LocalStorageService();
