@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'theme/app_theme.dart';
+import 'widgets/main_navigation.dart';
 import 'screens/enhanced_scanner_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/bankability_dashboard_screen.dart';
@@ -39,18 +41,10 @@ class SylistockApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'Krediti-GN Scanner',
+      title: 'Krediti-GN',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-        fontFamily: 'Roboto', // Use system font to avoid font loading issues
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 2,
-        ),
-      ),
-      home: const EnhancedScannerScreen(),
+      theme: AppTheme.lightTheme,
+      home: const MainNavigation(),
       routes: {
         '/settings': (context) => const SettingsScreen(),
         '/dashboard': (context) => const BankabilityDashboardScreen(),
