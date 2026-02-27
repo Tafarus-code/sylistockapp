@@ -4,7 +4,7 @@ import os
 
 def flutter_app(request):
     """
-    Serve the Flutter web application
+    Serve Flutter web application
     """
     # Path to the Flutter web build
     flutter_index_path = os.path.join(
@@ -18,7 +18,7 @@ def flutter_app(request):
         with open(flutter_index_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Check if we're in production (Railway) or development
+        # Check if we are in production (Railway) or development
         if 'RAILWAY_ENVIRONMENT' in os.environ or 'RAILWAY_SERVICE_NAME' in os.environ:
             # Production: Use absolute path for Railway
             base_href = "/static/flutter/"
@@ -34,8 +34,15 @@ def flutter_app(request):
 
         # Add CSP header for security
         response = HttpResponse(content, content_type='text/html')
-        response['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;"
-        
+        csp_policy = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self' data:;"
+        )
+        response['Content-Security-Policy'] = csp_policy
+
         return response
 
     except FileNotFoundError:
