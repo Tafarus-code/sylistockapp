@@ -25,7 +25,7 @@ def flutter_app(request):
         )
         if is_railway:
             # Production: Use absolute path for Railway
-            base_href = "/static/flutter/"
+            base_href = "/app/"
         else:
             # Development: Use relative path
             base_href = "/static/flutter/"
