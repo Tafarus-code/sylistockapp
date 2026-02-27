@@ -87,3 +87,6 @@ if settings.DEBUG:
         document_root=os.path.join(flutter_static_path, 'icons')
     )
     urlpatterns += static('favicon.png', document_root=flutter_static_path)
+else:
+    # Production: Static files are served by WhiteNoise middleware
+    # No need for explicit URL patterns in production

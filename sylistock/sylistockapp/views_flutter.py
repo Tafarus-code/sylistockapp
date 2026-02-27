@@ -18,13 +18,25 @@ def flutter_app(request):
         with open(flutter_index_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Update base href if needed for proper asset loading
+        # Check if we're in production (Railway) or development
+        if 'RAILWAY_ENVIRONMENT' in os.environ or 'RAILWAY_SERVICE_NAME' in os.environ:
+            # Production: Use absolute path for Railway
+            base_href = "/static/flutter/"
+        else:
+            # Development: Use relative path
+            base_href = "/static/flutter/"
+
+        # Update base href for proper asset loading
         content = content.replace(
             '<base href="/">',
-            '<base href="/static/flutter/">'
+            f'<base href="{base_href}">'
         )
 
-        return HttpResponse(content, content_type='text/html')
+        # Add CSP header for security
+        response = HttpResponse(content, content_type='text/html')
+        response['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;"
+        
+        return response
 
     except FileNotFoundError:
         return HttpResponse(
@@ -35,6 +47,8 @@ def flutter_app(request):
                 <h1>Flutter App Not Found</h1>
                 <p>Please build the Flutter app first:</p>
                 <pre>cd mobile_app && flutter build web</pre>
+                <p>Then run:</p>
+                <pre>python manage.py collectstatic --noinput</pre>
             </body>
             </html>
             """,
