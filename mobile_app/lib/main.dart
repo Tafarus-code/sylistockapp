@@ -26,6 +26,7 @@ void main() async {
     Hive.registerAdapter(EnhancedInventoryItemAdapter());
     Hive.registerAdapter(InventoryCategoryAdapter());
     Hive.registerAdapter(SimpleCategoryAdapter());
+    Hive.registerAdapter(WorkingCategoryAdapter());
     
     // Initialize enhanced inventory service
     final enhancedInventoryService = EnhancedInventoryService();
