@@ -13,13 +13,12 @@ class SimpleCategoryAdapter extends TypeAdapter<SimpleCategory> {
   @override
   SimpleCategory read(BinaryReader reader) {
     final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) {
-        final fieldId = reader.readByte();
-        final value = reader.read();
-        fields[fieldId] = value;
-      }
-    };
+    final fields = <int, dynamic>{};
+    for (int i = 0; i < numOfFields; i++) {
+      final fieldId = reader.readByte();
+      final value = reader.read();
+      fields[fieldId] = value;
+    }
 
     return SimpleCategory(
       id: fields[0] as String,
