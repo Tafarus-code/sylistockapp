@@ -13,7 +13,9 @@ def low_stock_alerts(request):
     """
     try:
         merchant_profile = request.user.merchantprofile
-        threshold = int(request.GET.get('threshold', 5))
+        threshold = int(request.GET.get(
+            'threshold', merchant_profile.alert_threshold
+        ))
 
         low_stock_items = StockItem.objects.filter(
             merchant=merchant_profile,
@@ -28,7 +30,7 @@ def low_stock_alerts(request):
                 'barcode': item.product.barcode,
                 'current_quantity': item.quantity,
                 'threshold': threshold,
-                'last_updated': item.pk,  # Using pk as placeholder
+                'last_updated': item.updated_at,
             })
 
         return Response({
@@ -56,10 +58,12 @@ def set_stock_alert_threshold(request):
     Set custom low stock alert threshold
     """
     try:
+        merchant_profile = request.user.merchantprofile
         threshold = int(request.data.get('threshold', 5))
 
-        # You could save this to merchant profile
-        # For now, just return success
+        merchant_profile.alert_threshold = threshold
+        merchant_profile.save()
+
         return Response({
             'message': f'Alert threshold set to {threshold}',
             'threshold': threshold,

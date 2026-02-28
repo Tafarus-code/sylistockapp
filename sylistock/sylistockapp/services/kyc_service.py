@@ -61,7 +61,7 @@ class KYCService:
                 verification=kyc_verification,
                 document_type=document_type,
                 file_name=file_name,
-                status='uploaded',
+                verification_status='pending',
             )
 
             # Save file
@@ -95,36 +95,45 @@ class KYCService:
 
         # Check file type
         allowed_types = ['image/jpeg', 'image/png', 'application/pdf']
-        if document.file.content_type not in allowed_types:
+        content_type = getattr(document.file, 'content_type', '')
+        if content_type and content_type not in allowed_types:
             issues.append('Invalid file type')
         else:
             validation_score += 20
 
         # Check image quality for images
-        if document.file.content_type.startswith('image/'):
+        if content_type and content_type.startswith('image/'):
             quality_score = self._check_image_quality(document.file)
             validation_score += quality_score
         else:
             validation_score += 30
 
-        # Update document status
-        document.validation_score = validation_score
-        document.issues = issues
-        document.status = 'validated' if validation_score >= 50 else 'rejected'
+        # Update document with correct field names
+        document.verification_score = validation_score
+        document.verification_notes = '; '.join(issues)
+        document.verification_status = (
+            'verified' if validation_score >= 50 else 'rejected'
+        )
         document.save()
 
         return {
             'score': validation_score,
             'issues': issues,
-            'status': document.status,
+            'status': document.verification_status,
         }
 
     def _check_image_quality(self, file):
-        """Check image quality and clarity"""
-        # Basic image quality checks
-        # This would typically use PIL or OpenCV for actual analysis
-        # For now, return a default score
-        return 30
+        """Check image quality using file size heuristic"""
+        try:
+            file_size = file.size
+            if file_size < 50 * 1024:  # < 50KB
+                return 10
+            elif file_size < 200 * 1024:  # < 200KB
+                return 20
+            else:
+                return 30
+        except Exception:
+            return 20
 
     def verify_bank_account(self, kyc_id, account_number, bank_name,
                             account_type):
@@ -136,9 +145,10 @@ class KYCService:
             bank_account = BankAccount.objects.create(
                 verification=kyc_verification,
                 account_number=account_number,
+                account_name=bank_name,
                 bank_name=bank_name,
                 account_type=account_type,
-                status='pending',
+                verification_status='pending',
             )
 
             # Perform bank verification
@@ -173,21 +183,30 @@ class KYCService:
         else:
             issues.append('Bank name is required')
 
-        # Additional verification logic would go here
-        # For now, return a default score
-        verification_score += 50
+        # Check account name
+        if bank_account.account_name.strip():
+            verification_score += 20
+        else:
+            issues.append('Account name is required')
 
-        # Update bank account status
+        # Account number digit check
+        if bank_account.account_number.isdigit():
+            verification_score += 30
+        else:
+            issues.append('Account number should contain only digits')
+
+        # Update bank account with correct field names
         bank_account.verification_score = verification_score
-        bank_account.issues = issues
-        bank_account.status = ('verified' if verification_score >= 70
-                               else 'rejected')
+        bank_account.verification_notes = '; '.join(issues)
+        bank_account.verification_status = (
+            'verified' if verification_score >= 70 else 'rejected'
+        )
         bank_account.save()
 
         return {
             'score': verification_score,
             'issues': issues,
-            'status': bank_account.status,
+            'status': bank_account.verification_status,
         }
 
     def run_compliance_check(self, kyc_id):
@@ -195,28 +214,38 @@ class KYCService:
         try:
             kyc_verification = KYCVerification.objects.get(id=kyc_id)
 
-            # Create compliance check record
-            compliance_check = ComplianceCheck.objects.create(
-                verification=kyc_verification,
-                status='in_progress',
+            # Perform various checks
+            check_results = self._perform_compliance_checks(
+                kyc_verification
             )
 
-            # Perform various checks
-            check_results = self._perform_compliance_checks(kyc_verification)
-
             # Calculate overall score
-            overall_score = self._calculate_compliance_score(check_results)
+            overall_score = self._calculate_compliance_score(
+                check_results
+            )
 
-            # Update compliance check
-            compliance_check.overall_score = overall_score
-            compliance_check.check_results = check_results
-            compliance_check.status = 'completed'
-            compliance_check.save()
+            # Determine result
+            result = (
+                'pass'
+                if overall_score >= self.verification_threshold
+                else 'fail'
+            )
+
+            # Create compliance check record with correct fields
+            ComplianceCheck.objects.create(
+                verification=kyc_verification,
+                check_type='risk',
+                result=result,
+                score=overall_score,
+                max_score=100,
+                details=check_results,
+            )
 
             # Update KYC verification status
             kyc_verification.overall_score = overall_score
             kyc_verification.status = (
-                'approved' if overall_score >= self.verification_threshold
+                'approved'
+                if overall_score >= self.verification_threshold
                 else 'rejected'
             )
             kyc_verification.save()
@@ -239,7 +268,9 @@ class KYCService:
         check_results = {}
 
         # Document verification check
-        document_score = self._check_document_completeness(kyc_verification)
+        document_score = self._check_document_completeness(
+            kyc_verification
+        )
         check_results['document_completeness'] = document_score
 
         # Bank account verification check
@@ -254,7 +285,9 @@ class KYCService:
 
     def _check_document_completeness(self, kyc_verification):
         """Check if all required documents are uploaded and valid"""
-        documents = KYCDocument.objects.filter(verification=kyc_verification)
+        documents = KYCDocument.objects.filter(
+            verification=kyc_verification
+        )
         required_docs = kyc_verification.get_required_documents()
 
         score = 0
@@ -262,7 +295,7 @@ class KYCService:
 
         for doc_type in required_docs:
             doc = documents.filter(document_type=doc_type).first()
-            if doc and doc.status == 'validated':
+            if doc and doc.verification_status == 'verified':
                 score += 25
             else:
                 issues.append(f'Missing or invalid {doc_type}')
@@ -276,33 +309,32 @@ class KYCService:
     def _check_bank_verification(self, kyc_verification):
         """Check bank account verification status"""
         bank_accounts = BankAccount.objects.filter(
-            verification=kyc_verification)
+            verification=kyc_verification
+        )
 
         if bank_accounts.exists():
             account = bank_accounts.first()
             return {
                 'score': account.verification_score,
-                'issues': account.issues,
-                'status': account.status,
+                'issues': account.verification_notes,
+                'status': account.verification_status,
             }
         else:
             return {
                 'score': 0,
-                'issues': ['No bank account provided'],
-                'status': 'missing',
+                'issues': 'No bank account provided',
+                'status': 'pending',
             }
 
     def _assess_risk_level(self, kyc_verification):
         """Assess risk level of the merchant"""
-        # Basic risk assessment logic
         risk_score = 50  # Default medium risk
 
-        # Adjust based on various factors
-        if kyc_verification.merchant.business_age > 365:  # More than 1 year
+        # Adjust based on business age
+        if kyc_verification.merchant.business_age > 365:
             risk_score += 20
-
-        # Additional risk assessment logic would go here
-        # For now, return a default score
+        elif kyc_verification.merchant.business_age > 180:
+            risk_score += 10
 
         return {
             'score': risk_score,
@@ -332,7 +364,10 @@ class KYCService:
         total_score += risk_score.get('score', 0) * risk_weight
         max_score += 100 * risk_weight
 
-        return int((total_score / max_score) * 100) if max_score > 0 else 0
+        return (
+            int((total_score / max_score) * 100)
+            if max_score > 0 else 0
+        )
 
     def get_kyc_status(self, kyc_id):
         """Get current KYC verification status"""
@@ -343,9 +378,11 @@ class KYCService:
                 'success': True,
                 'status': kyc_verification.status,
                 'overall_score': kyc_verification.overall_score,
-                'verification_level': kyc_verification.verification_level,
-                'created_at': kyc_verification.created_at,
-                'updated_at': kyc_verification.updated_at,
+                'verification_level': (
+                    kyc_verification.verification_level
+                ),
+                'submitted_at': kyc_verification.submitted_at,
+                'reviewed_at': kyc_verification.reviewed_at,
             }
 
         except KYCVerification.DoesNotExist:
@@ -357,12 +394,13 @@ class KYCService:
     def get_required_documents(self, verification_level):
         """Get required documents for verification level"""
         document_requirements = {
-            'basic': ['identity_document', 'proof_of_address'],
-            'standard': ['identity_document', 'proof_of_address',
-                         'business_license'],
+            'basic': ['national_id', 'utility_bill'],
+            'standard': ['national_id', 'utility_bill',
+                         'business_registration'],
             'enhanced': [
-                'identity_document', 'proof_of_address', 'business_license',
-                'financial_statements', 'tax_clearance'
+                'national_id', 'utility_bill',
+                'business_registration',
+                'tax_certificate', 'bank_statement'
             ],
         }
 
@@ -394,8 +432,10 @@ class KYCService:
             # Create new verification record
             new_verification = KYCVerification.objects.create(
                 merchant=kyc_verification.merchant,
-                verification_level=(verification_level or
-                                    kyc_verification.verification_level),
+                verification_level=(
+                    verification_level
+                    or kyc_verification.verification_level
+                ),
                 status='pending',
                 overall_score=0,
                 previous_verification=kyc_verification,
@@ -404,7 +444,9 @@ class KYCService:
             return {
                 'success': True,
                 'new_kyc_id': str(new_verification.id),
-                'verification_level': new_verification.verification_level,
+                'verification_level': (
+                    new_verification.verification_level
+                ),
                 'status': new_verification.status,
             }
 

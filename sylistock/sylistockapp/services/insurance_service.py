@@ -130,6 +130,10 @@ class InsuranceService:
                 # Create premium schedule
                 self._create_premium_schedule(policy)
 
+                # Activate the policy
+                policy.status = 'active'
+                policy.save()
+
                 return {
                     'success': True,
                     'policy_id': str(policy.id),

@@ -240,6 +240,7 @@ class InsurancePremium(models.Model):
         null=True,
         blank=True
     )
+    paid_date = models.DateTimeField(null=True, blank=True)
     payment_method = models.CharField(max_length=50, blank=True)
     payment_reference = models.CharField(max_length=100, blank=True)
 

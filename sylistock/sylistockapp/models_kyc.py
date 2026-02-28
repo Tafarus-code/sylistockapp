@@ -35,7 +35,7 @@ class KYCDocument(models.Model):
     )
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
     file_name = models.CharField(max_length=255)
-    file = models.ImageField(upload_to='kyc_documents/')
+    file = models.FileField(upload_to='kyc_documents/')
     file_size = models.IntegerField(default=0)
     mime_type = models.CharField(max_length=100)
     upload_date = models.DateTimeField(auto_now_add=True)

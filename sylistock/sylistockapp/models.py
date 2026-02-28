@@ -12,6 +12,17 @@ class MerchantProfile(models.Model):
     bankability_score = models.DecimalField(
         max_digits=5, decimal_places=2, default=0.0
     )
+    business_age = models.PositiveIntegerField(
+        default=0, help_text="Business age in days"
+    )
+    alert_threshold = models.PositiveIntegerField(
+        default=5, help_text="Low stock alert threshold"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.business_name
 
 
 class Product(models.Model):
@@ -32,11 +43,13 @@ class StockItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=0)
     cost_price = models.DecimalField(
-        max_digits=12, decimal_places=2
+        max_digits=12, decimal_places=2, default=0
     )  # Purchase price
     sale_price = models.DecimalField(
-        max_digits=12, decimal_places=2
+        max_digits=12, decimal_places=2, default=0
     )  # Tag price
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class InventoryLog(models.Model):
