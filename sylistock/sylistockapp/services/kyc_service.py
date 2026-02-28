@@ -9,21 +9,22 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.contrib.auth.models import User
-from ..models_kyc import KYCDocument, KYCVerification, BankAccount, ComplianceCheck
+from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
+                           ComplianceCheck)
 from ..models import MerchantProfile
 
 
 class KYCService:
     """Know Your Customer service for bank compliance"""
-    
+
     def __init__(self):
         self.verification_threshold = 70  # Minimum score for approval
-        
+
     def initiate_kyc_process(self, merchant_id, verification_level='basic'):
         """Initiate KYC verification process for a merchant"""
         try:
             merchant = MerchantProfile.objects.get(id=merchant_id)
-            
+
             # Create or update KYC verification
             kyc_verification, created = KYCVerification.objects.get_or_create(
                 merchant=merchant,
@@ -33,362 +34,388 @@ class KYCService:
                     'overall_score': 0,
                 }
             )
-            
+
             if not created:
                 kyc_verification.verification_level = verification_level
                 kyc_verification.status = 'pending'
                 kyc_verification.save()
-            
+
             # Get required documents for this verification level
             required_documents = kyc_verification.get_required_documents()
-            
+
             return {
                 'success': True,
                 'kyc_id': str(kyc_verification.id),
                 'verification_level': verification_level,
                 'status': kyc_verification.status,
                 'required_documents': required_documents,
-                'message': f'KYC process initiated for {verification_level} verification'
             }
-            
+
         except MerchantProfile.DoesNotExist:
             return {
                 'success': False,
-                'error': 'Merchant not found'
+                'error': 'Merchant not found',
             }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    def upload_kyc_document(self, merchant_id, document_type, document_number=None, document_image=None, expiry_date=None, issued_date=None):
-        """Upload KYC document for verification"""
+
+    def upload_document(self, kyc_id, document_type, file_data, file_name):
+        """Upload and process KYC document"""
         try:
-            merchant = MerchantProfile.objects.get(id=merchant_id)
-            
-            # Create KYC document
-            kyc_doc = KYCDocument.objects.create(
-                merchant=merchant,
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+
+            # Create KYC document record
+            kyc_document = KYCDocument.objects.create(
+                verification=kyc_verification,
                 document_type=document_type,
-                document_number=document_number or '',
-                document_image=document_image,
-                expiry_date=expiry_date,
-                issued_date=issued_date,
-                verification_status='pending'
+                file_name=file_name,
+                status='uploaded',
             )
-            
-            # Trigger automated verification if available
-            if document_image:
-                self._perform_automated_verification(kyc_doc)
-            
+
+            # Save file
+            kyc_document.file.save(file_name, ContentFile(file_data))
+
+            # Perform basic validation
+            validation_result = self._validate_document(kyc_document)
+
             return {
                 'success': True,
-                'document_id': str(kyc_doc.id),
-                'document_type': document_type,
-                'verification_status': kyc_doc.verification_status,
-                'message': 'Document uploaded successfully'
+                'document_id': str(kyc_document.id),
+                'validation_result': validation_result,
             }
-            
-        except MerchantProfile.DoesNotExist:
+
+        except KYCVerification.DoesNotExist:
             return {
                 'success': False,
-                'error': 'Merchant not found'
+                'error': 'KYC verification not found',
             }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    def _perform_automated_verification(self, kyc_document):
-        """Perform automated document verification"""
+
+    def _validate_document(self, document):
+        """Validate uploaded document"""
+        validation_score = 0
+        issues = []
+
+        # Check file size
+        if document.file.size > 10 * 1024 * 1024:  # 10MB limit
+            issues.append('File size exceeds 10MB limit')
+        else:
+            validation_score += 20
+
+        # Check file type
+        allowed_types = ['image/jpeg', 'image/png', 'application/pdf']
+        if document.file.content_type not in allowed_types:
+            issues.append('Invalid file type')
+        else:
+            validation_score += 20
+
+        # Check image quality for images
+        if document.file.content_type.startswith('image/'):
+            quality_score = self._check_image_quality(document.file)
+            validation_score += quality_score
+        else:
+            validation_score += 30
+
+        # Update document status
+        document.validation_score = validation_score
+        document.issues = issues
+        document.status = 'validated' if validation_score >= 50 else 'rejected'
+        document.save()
+
+        return {
+            'score': validation_score,
+            'issues': issues,
+            'status': document.status,
+        }
+
+    def _check_image_quality(self, file):
+        """Check image quality and clarity"""
+        # Basic image quality checks
+        # This would typically use PIL or OpenCV for actual analysis
+        # For now, return a default score
+        return 30
+
+    def verify_bank_account(self, kyc_id, account_number, bank_name,
+                         account_type):
+        """Verify bank account details"""
         try:
-            # Simulate automated verification (in production, integrate with actual verification APIs)
-            verification_score = 85  # Simulated score
-            
-            if verification_score >= 80:
-                kyc_document.verification_status = 'verified'
-                kyc_document.verified_at = timezone.now()
-                kyc_document.verification_notes = 'Automated verification passed'
-            else:
-                kyc_document.verification_status = 'pending'
-                kyc_document.verification_notes = 'Manual review required'
-            
-            kyc_document.save()
-            
-        except Exception as e:
-            kyc_document.verification_status = 'pending'
-            kyc_document.verification_notes = f'Verification error: {str(e)}'
-            kyc_document.save()
-    
-    def add_bank_account(self, merchant_id, bank_name, bank_code, account_number, account_name, account_type='business', is_primary=False):
-        """Add bank account information for merchant"""
-        try:
-            merchant = MerchantProfile.objects.get(id=merchant_id)
-            
-            # If setting as primary, unset other primary accounts
-            if is_primary:
-                BankAccount.objects.filter(merchant=merchant, is_primary=True).update(is_primary=False)
-            
-            # Create bank account
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+
+            # Create bank account record
             bank_account = BankAccount.objects.create(
-                merchant=merchant,
-                bank_name=bank_name,
-                bank_code=bank_code,
+                verification=kyc_verification,
                 account_number=account_number,
-                account_name=account_name,
+                bank_name=bank_name,
                 account_type=account_type,
-                is_primary=is_primary
+                status='pending',
             )
-            
+
+            # Perform bank verification
+            verification_result = self._verify_bank_details(bank_account)
+
             return {
                 'success': True,
                 'account_id': str(bank_account.id),
-                'bank_name': bank_name,
-                'account_number': account_number[-4:],  # Only show last 4 digits
-                'is_primary': is_primary,
-                'message': 'Bank account added successfully'
+                'verification_result': verification_result,
             }
-            
-        except MerchantProfile.DoesNotExist:
+
+        except KYCVerification.DoesNotExist:
             return {
                 'success': False,
-                'error': 'Merchant not found'
+                'error': 'KYC verification not found',
             }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    def perform_compliance_checks(self, merchant_id):
-        """Perform all compliance checks for a merchant"""
+
+    def _verify_bank_details(self, bank_account):
+        """Verify bank account details"""
+        verification_score = 0
+        issues = []
+
+        # Check account number format
+        if len(bank_account.account_number) < 8:
+            issues.append('Account number too short')
+        else:
+            verification_score += 30
+
+        # Check bank name validity
+        if bank_account.bank_name.strip():
+            verification_score += 20
+        else:
+            issues.append('Bank name is required')
+
+        # Additional verification logic would go here
+        # For now, return a default score
+        verification_score += 50
+
+        # Update bank account status
+        bank_account.verification_score = verification_score
+        bank_account.issues = issues
+        bank_account.status = ('verified' if verification_score >= 70
+                           else 'rejected')
+        bank_account.save()
+
+        return {
+            'score': verification_score,
+            'issues': issues,
+            'status': bank_account.status,
+        }
+
+    def run_compliance_check(self, kyc_id):
+        """Run comprehensive compliance check"""
         try:
-            merchant = MerchantProfile.objects.get(id=merchant_id)
-            results = {}
-            
-            # Perform different types of compliance checks
-            check_types = ['sanctions', 'pep', 'aml', 'fraud', 'credit']
-            
-            for check_type in check_types:
-                result = self._perform_single_compliance_check(merchant, check_type)
-                results[check_type] = result
-            
-            # Calculate overall compliance score
-            total_score = sum(check['risk_score'] for check in results.values())
-            overall_score = total_score / len(check_types)
-            
-            return {
-                'success': True,
-                'compliance_checks': results,
-                'overall_score': round(overall_score, 2),
-                'message': 'Compliance checks completed'
-            }
-            
-        except MerchantProfile.DoesNotExist:
-            return {
-                'success': False,
-                'error': 'Merchant not found'
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    def _perform_single_compliance_check(self, merchant, check_type):
-        """Perform a single compliance check"""
-        try:
-            # Simulate compliance check (in production, integrate with actual compliance APIs)
-            risk_scores = {
-                'sanctions': 15,  # Low risk
-                'pep': 25,        # Low-medium risk
-                'aml': 20,        # Low risk
-                'fraud': 30,      # Medium risk
-                'credit': 35,     # Medium risk
-            }
-            
-            base_score = risk_scores.get(check_type, 50)
-            
-            # Add some randomness for simulation
-            import random
-            final_score = base_score + random.randint(-10, 10)
-            final_score = max(0, min(100, final_score))
-            
-            # Determine status based on score
-            if final_score < 30:
-                status = 'passed'
-            elif final_score < 60:
-                status = 'flagged'
-            else:
-                status = 'failed'
-            
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+
             # Create compliance check record
             compliance_check = ComplianceCheck.objects.create(
-                merchant=merchant,
-                check_type=check_type,
-                status=status,
-                risk_score=final_score,
-                check_result={
-                    'score': final_score,
-                    'details': f'Automated {check_type} check completed',
-                    'timestamp': timezone.now().isoformat()
-                },
-                next_check_due=timezone.now() + timedelta(days=30)
+                verification=kyc_verification,
+                status='in_progress',
             )
-            
-            return {
-                'check_id': str(compliance_check.id),
-                'check_type': check_type,
-                'status': status,
-                'risk_score': final_score,
-                'next_check_due': compliance_check.next_check_due.isoformat()
-            }
-            
-        except Exception as e:
-            return {
-                'check_type': check_type,
-                'status': 'failed',
-                'error': str(e)
-            }
-    
-    def evaluate_kyc_application(self, merchant_id):
-        """Evaluate complete KYC application and determine approval status"""
-        try:
-            merchant = MerchantProfile.objects.get(id=merchant_id)
-            kyc_verification = merchant.kyc_verification
-            
-            if not kyc_verification:
-                return {
-                    'success': False,
-                    'error': 'KYC verification not found'
-                }
-            
-            # Check document verification status
-            required_documents = kyc_verification.get_required_documents()
-            uploaded_documents = KYCDocument.objects.filter(
-                merchant=merchant,
-                document_type__in=required_documents,
-                verification_status='verified'
-            )
-            
-            document_score = (len(uploaded_documents) / len(required_documents)) * 100
-            
-            # Get compliance checks
-            compliance_checks = ComplianceCheck.objects.filter(merchant=merchant)
-            if compliance_checks.exists():
-                compliance_score = sum(check.risk_score for check in compliance_checks) / len(compliance_checks)
-            else:
-                compliance_score = 50  # Default medium risk
-            
-            # Check bank account verification
-            bank_accounts = BankAccount.objects.filter(merchant=merchant, is_verified=True)
-            bank_score = 100 if bank_accounts.exists() else 50
-            
+
+            # Perform various checks
+            check_results = self._perform_compliance_checks(kyc_verification)
+
             # Calculate overall score
-            overall_score = (document_score * 0.4) + (compliance_score * 0.4) + (bank_score * 0.2)
-            overall_score = round(overall_score, 2)
-            
-            # Determine status
-            if overall_score >= self.verification_threshold:
-                status = 'approved'
-                kyc_verification.approved_at = timezone.now()
-                kyc_verification.expires_at = timezone.now() + timedelta(days=365)
-            else:
-                status = 'rejected'
-            
+            overall_score = self._calculate_compliance_score(check_results)
+
+            # Update compliance check
+            compliance_check.overall_score = overall_score
+            compliance_check.check_results = check_results
+            compliance_check.status = 'completed'
+            compliance_check.save()
+
+            # Update KYC verification status
             kyc_verification.overall_score = overall_score
-            kyc_verification.status = status
+            kyc_verification.status = (
+                'approved' if overall_score >= self.verification_threshold
+                else 'rejected'
+            )
             kyc_verification.save()
-            
+
             return {
                 'success': True,
-                'status': status,
                 'overall_score': overall_score,
-                'document_score': document_score,
-                'compliance_score': compliance_score,
-                'bank_score': bank_score,
-                'threshold': self.verification_threshold,
-                'message': f'KYC application {status} with score {overall_score}'
+                'status': kyc_verification.status,
+                'check_results': check_results,
             }
-            
-        except MerchantProfile.DoesNotExist:
+
+        except KYCVerification.DoesNotExist:
             return {
                 'success': False,
-                'error': 'Merchant not found'
+                'error': 'KYC verification not found',
             }
-        except Exception as e:
+
+    def _perform_compliance_checks(self, kyc_verification):
+        """Perform various compliance checks"""
+        check_results = {}
+
+        # Document verification check
+        document_score = self._check_document_completeness(kyc_verification)
+        check_results['document_completeness'] = document_score
+
+        # Bank account verification check
+        bank_score = self._check_bank_verification(kyc_verification)
+        check_results['bank_verification'] = bank_score
+
+        # Risk assessment check
+        risk_score = self._assess_risk_level(kyc_verification)
+        check_results['risk_assessment'] = risk_score
+
+        return check_results
+
+    def _check_document_completeness(self, kyc_verification):
+        """Check if all required documents are uploaded and valid"""
+        documents = KYCDocument.objects.filter(verification=kyc_verification)
+        required_docs = kyc_verification.get_required_documents()
+
+        score = 0
+        issues = []
+
+        for doc_type in required_docs:
+            doc = documents.filter(document_type=doc_type).first()
+            if doc and doc.status == 'validated':
+                score += 25
+            else:
+                issues.append(f'Missing or invalid {doc_type}')
+
+        return {
+            'score': score,
+            'issues': issues,
+            'max_score': len(required_docs) * 25,
+        }
+
+    def _check_bank_verification(self, kyc_verification):
+        """Check bank account verification status"""
+        bank_accounts = BankAccount.objects.filter(
+            verification=kyc_verification)
+
+        if bank_accounts.exists():
+            account = bank_accounts.first()
             return {
-                'success': False,
-                'error': str(e)
+                'score': account.verification_score,
+                'issues': account.issues,
+                'status': account.status,
             }
-    
-    def get_kyc_status(self, merchant_id):
-        """Get current KYC status for a merchant"""
+        else:
+            return {
+                'score': 0,
+                'issues': ['No bank account provided'],
+                'status': 'missing',
+            }
+
+    def _assess_risk_level(self, kyc_verification):
+        """Assess risk level of the merchant"""
+        # Basic risk assessment logic
+        risk_score = 50  # Default medium risk
+
+        # Adjust based on various factors
+        if kyc_verification.merchant.business_age > 365:  # More than 1 year
+            risk_score += 20
+
+        # Additional risk assessment logic would go here
+        # For now, return a default score
+
+        return {
+            'score': risk_score,
+            'risk_level': 'medium' if risk_score < 70 else 'low',
+        }
+
+    def _calculate_compliance_score(self, check_results):
+        """Calculate overall compliance score"""
+        total_score = 0
+        max_score = 0
+
+        # Document completeness (40% weight)
+        doc_score = check_results.get('document_completeness', {})
+        doc_weight = 0.4
+        total_score += doc_score.get('score', 0) * doc_weight
+        max_score += 100 * doc_weight
+
+        # Bank verification (30% weight)
+        bank_score = check_results.get('bank_verification', {})
+        bank_weight = 0.3
+        total_score += bank_score.get('score', 0) * bank_weight
+        max_score += 100 * bank_weight
+
+        # Risk assessment (30% weight)
+        risk_score = check_results.get('risk_assessment', {})
+        risk_weight = 0.3
+        total_score += risk_score.get('score', 0) * risk_weight
+        max_score += 100 * risk_weight
+
+        return int((total_score / max_score) * 100) if max_score > 0 else 0
+
+    def get_kyc_status(self, kyc_id):
+        """Get current KYC verification status"""
         try:
-            merchant = MerchantProfile.objects.get(id=merchant_id)
-            kyc_verification = merchant.kyc_verification
-            
-            if not kyc_verification:
-                return {
-                    'success': False,
-                    'error': 'KYC verification not found'
-                }
-            
-            # Get documents
-            documents = KYCDocument.objects.filter(merchant=merchant)
-            document_status = {}
-            for doc in documents:
-                document_status[doc.document_type] = {
-                    'status': doc.verification_status,
-                    'uploaded_at': doc.created_at.isoformat(),
-                    'verified_at': doc.verified_at.isoformat() if doc.verified_at else None
-                }
-            
-            # Get compliance checks
-            compliance_checks = ComplianceCheck.objects.filter(merchant=merchant)
-            compliance_status = []
-            for check in compliance_checks:
-                compliance_status.append({
-                    'type': check.check_type,
-                    'status': check.status,
-                    'risk_score': check.risk_score,
-                    'performed_at': check.performed_at.isoformat()
-                })
-            
-            # Get bank accounts
-            bank_accounts = BankAccount.objects.filter(merchant=merchant)
-            bank_status = []
-            for account in bank_accounts:
-                bank_status.append({
-                    'bank_name': account.bank_name,
-                    'account_number': account.account_number[-4:],
-                    'is_primary': account.is_primary,
-                    'is_verified': account.is_verified
-                })
-            
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+
             return {
                 'success': True,
-                'kyc_id': str(kyc_verification.id),
-                'verification_level': kyc_verification.verification_level,
                 'status': kyc_verification.status,
                 'overall_score': kyc_verification.overall_score,
-                'approved_at': kyc_verification.approved_at.isoformat() if kyc_verification.approved_at else None,
-                'expires_at': kyc_verification.expires_at.isoformat() if kyc_verification.expires_at else None,
-                'documents': document_status,
-                'compliance_checks': compliance_status,
-                'bank_accounts': bank_status,
-                'message': 'KYC status retrieved successfully'
+                'verification_level': kyc_verification.verification_level,
+                'created_at': kyc_verification.created_at,
+                'updated_at': kyc_verification.updated_at,
             }
-            
-        except MerchantProfile.DoesNotExist:
+
+        except KYCVerification.DoesNotExist:
             return {
                 'success': False,
-                'error': 'Merchant not found'
+                'error': 'KYC verification not found',
             }
-        except Exception as e:
+
+    def get_required_documents(self, verification_level):
+        """Get required documents for verification level"""
+        document_requirements = {
+            'basic': ['identity_document', 'proof_of_address'],
+            'standard': ['identity_document', 'proof_of_address',
+                         'business_license'],
+            'enhanced': [
+                'identity_document', 'proof_of_address', 'business_license',
+                'financial_statements', 'tax_clearance'
+            ],
+        }
+
+        return document_requirements.get(verification_level, [])
+
+    def expire_kyc_verification(self, kyc_id):
+        """Expire KYC verification"""
+        try:
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+            kyc_verification.status = 'expired'
+            kyc_verification.save()
+
+            return {
+                'success': True,
+                'status': 'expired',
+            }
+
+        except KYCVerification.DoesNotExist:
             return {
                 'success': False,
-                'error': str(e)
+                'error': 'KYC verification not found',
+            }
+
+    def renew_kyc_verification(self, kyc_id, verification_level=None):
+        """Renew KYC verification"""
+        try:
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+
+            # Create new verification record
+            new_verification = KYCVerification.objects.create(
+                merchant=kyc_verification.merchant,
+                verification_level=(verification_level or
+                               kyc_verification.verification_level),
+                status='pending',
+                overall_score=0,
+                previous_verification=kyc_verification,
+            )
+
+            return {
+                'success': True,
+                'new_kyc_id': str(new_verification.id),
+                'verification_level': new_verification.verification_level,
+                'status': new_verification.status,
+            }
+
+        except KYCVerification.DoesNotExist:
+            return {
+                'success': False,
+                'error': 'KYC verification not found',
             }
