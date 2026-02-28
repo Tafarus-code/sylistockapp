@@ -22,7 +22,7 @@ def initiate_kyc(request):
 
         kyc_service = KYCService()
         result = kyc_service.initiate_kyc_process(merchant_id,
-                                                     verification_level)
+                                                  verification_level)
 
         return Response(result)
 

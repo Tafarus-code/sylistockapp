@@ -131,7 +131,8 @@ def process_claim(request):
     """Process insurance claim"""
     try:
         claim_id = request.data.get('claim_id')
-        action = request.data.get('action')  # 'approve', 'reject', 'request_info'
+        # 'approve', 'reject', or 'request_info'
+        action = request.data.get('action')
         notes = request.data.get('notes', '')
 
         if not all([claim_id, action]):

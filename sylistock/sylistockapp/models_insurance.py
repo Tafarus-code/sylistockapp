@@ -27,10 +27,10 @@ class InsurancePolicy(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4,
                           editable=False)
     merchant = models.ForeignKey('MerchantProfile', on_delete=models.CASCADE,
-                               related_name='insurance_policies')
+                                related_name='insurance_policies')
     policy_number = models.CharField(max_length=50, unique=True)
     policy_type = models.CharField(max_length=20, choices=POLICY_TYPES,
-                                  default='basic')
+                                   default='basic')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES,
                               default='pending')
 
@@ -156,11 +156,11 @@ class InsuranceRiskAssessment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4,
                           editable=False)
     merchant = models.ForeignKey('MerchantProfile', on_delete=models.CASCADE,
-                               related_name='risk_assessments')
+                                related_name='risk_assessments')
     risk_level = models.CharField(max_length=20, choices=RISK_LEVELS,
                                   default='medium')
     risk_score = models.IntegerField(default=50,
-                                    help_text="Risk score (0-100)")
+                                     help_text="Risk score (0-100)")
     # Assessment factors
     location_risk = models.IntegerField(default=50,
                                         help_text="Location-based risk score")
@@ -201,7 +201,7 @@ class InsuranceCoverage(models.Model):
     coverage_type = models.CharField(max_length=30, choices=COVERAGE_TYPES)
     is_included = models.BooleanField(default=False)
     coverage_limit = models.DecimalField(max_digits=12, decimal_places=2,
-                                          null=True, blank=True)
+                                         null=True, blank=True)
     deductible_percentage = models.DecimalField(max_digits=5, decimal_places=2,
                                                 default=0)
 
