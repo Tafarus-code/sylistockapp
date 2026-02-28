@@ -84,6 +84,7 @@ class InsuranceService:
                     'security_measures': {},
                     'previous_claims': 0,
                 }
+                )
             )
 
             if not created:

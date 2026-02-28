@@ -1,7 +1,6 @@
 """
 KYC (Know Your Customer) Service for bank compliance
 """
-from datetime import datetime, timedelta
 from django.core.files.base import ContentFile
 from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
                            ComplianceCheck)

@@ -6,7 +6,6 @@ from ..models_insurance import (
     InsurancePolicy, InsuranceClaim, InsuranceRiskAssessment,
     InsuranceCoverage, InsurancePremium
 )
-from ..models import MerchantProfile
 
 
 class InsurancePolicySerializer(serializers.ModelSerializer):

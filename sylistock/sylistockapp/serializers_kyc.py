@@ -4,7 +4,6 @@ KYC (Know Your Customer) serializers for API
 from rest_framework import serializers
 from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
                            ComplianceCheck)
-from ..models import MerchantProfile
 
 
 class KYCDocumentSerializer(serializers.ModelSerializer):
@@ -91,7 +90,7 @@ class KYCVerificationSerializer(serializers.ModelSerializer):
 
     def validate_expires_at(self, value):
         """Validate expiry date is after submission date"""
-        if value and value <= obj.submitted_at.date():
+        if value and value <= self.instance.submitted_at.date():
             raise serializers.ValidationError(
                 "Expiry date must be after submission date"
             )
