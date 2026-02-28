@@ -14,6 +14,7 @@ import 'services/network_optimization_service.dart';
 import 'services/enhanced_inventory_service.dart';
 import 'models/inventory_item.dart';
 import 'models/enhanced_inventory_item.dart';
+import 'screens/inventory/simple_category_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
