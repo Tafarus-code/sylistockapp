@@ -100,7 +100,6 @@ class KYCVerification(models.Model):
     reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                 blank=True, related_name='kyc_reviews')
         previous_verification = models.ForeignKey(
-    previous_verification = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True
     )
 

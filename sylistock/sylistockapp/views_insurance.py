@@ -133,7 +133,7 @@ def process_claim(request):
         claim_id = request.data.get('claim_id')
         action = request.data.get('action')  # 'approve', 'reject',
                                            # 'request_info'
-    # # notes = request.data.get('notes', '')        if not all([claim_id, action]):
+        if not all([claim_id, action]):
             return Response({
                 'error': 'Missing required fields',
                 'required': ['claim_id', 'action']

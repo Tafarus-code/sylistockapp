@@ -202,7 +202,7 @@ class InsuranceCoverage(models.Model):
     is_included = models.BooleanField(default=False)
     coverage_limit = models.DecimalField(max_digits=12, decimal_places=2,
                                           null=True, blank=True)
-                                          deductible_percentage = models.DecimalField(max_digits=5, decimal_places=2,
+    deductible_percentage = models.DecimalField(max_digits=5, decimal_places=2,
                                                 default=0)
 
     class Meta:
@@ -236,7 +236,7 @@ class InsurancePremium(models.Model):
     # Payment details
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2,
                                           null=True, blank=True)
-                                          paid_date = models.DateTimeField(null=True, blank=True)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2,
     payment_method = models.CharField(max_length=50, blank=True)
     payment_reference = models.CharField(max_length=100, blank=True)
 
