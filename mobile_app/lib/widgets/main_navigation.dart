@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../theme/app_theme.dart';
 import '../screens/inventory/enhanced_scanner_screen.dart';
 import '../screens/bankability_dashboard_screen.dart';
 import '../screens/kyc/kyc_dashboard_screen.dart';
-import '../screens/insurance/insurance_dashboard_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/reports/reports_screen.dart';
 

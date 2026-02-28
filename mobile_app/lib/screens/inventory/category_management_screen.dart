@@ -4,7 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../theme/app_theme.dart';
 import '../../models/enhanced_inventory_item.dart';
-import '../test_hive_screen.dart';
+import '../../services/enhanced_inventory_service.dart';
 
 class CategoryManagementScreen extends ConsumerStatefulWidget {
   const CategoryManagementScreen({Key? key}) : super(key: key);
@@ -15,7 +15,7 @@ class CategoryManagementScreen extends ConsumerStatefulWidget {
 
 class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScreen> {
   bool _isLoading = false;
-  List<TestCategory> _categories = [];
+  List<InventoryCategory> _categories = [];
 
   @override
   void initState() {
@@ -27,7 +27,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
     setState(() => _isLoading = true);
     
     try {
-      final categoryBox = await Hive.openBox<TestCategory>('categories');
+      final categoryBox = await Hive.openBox<InventoryCategory>('categories');
       final keys = categoryBox.keys;
       _categories.clear();
       

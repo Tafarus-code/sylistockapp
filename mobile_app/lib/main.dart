@@ -14,7 +14,7 @@ import 'services/network_optimization_service.dart';
 import 'services/enhanced_inventory_service.dart';
 import 'models/inventory_item.dart';
 import 'models/enhanced_inventory_item.dart';
-import 'screens/inventory/simple_category_screen.dart';
+import 'models/test_category.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +25,7 @@ void main() async {
     Hive.registerAdapter(InventoryItemAdapter());
     Hive.registerAdapter(EnhancedInventoryItemAdapter());
     Hive.registerAdapter(InventoryCategoryAdapter());
-    Hive.registerAdapter(SimpleCategoryAdapter());
+    Hive.registerAdapter(TestCategoryAdapter());
     Hive.registerAdapter(WorkingCategoryAdapter());
     
     // Initialize enhanced inventory service
