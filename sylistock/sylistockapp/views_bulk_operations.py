@@ -45,6 +45,7 @@ def bulk_import_inventory(request):
                     name = row.get('name', '').strip()
                     quantity = int(row.get('quantity', 0))
                     price = float(row.get('price', 0))
+                    cost_price = float(row.get('cost_price', 0))
 
                     if not barcode or not name:
                         error_msg = f'Row {row_num}: Missing barcode or name'
@@ -67,12 +68,14 @@ def bulk_import_inventory(request):
                         product=product,
                         defaults={
                             'quantity': quantity,
+                            'cost_price': cost_price,
                             'sale_price': price,
                         }
                     )
 
                     if not created:
                         stock_item.quantity = quantity
+                        stock_item.cost_price = cost_price
                         stock_item.sale_price = price
                         stock_item.save()
 
@@ -99,6 +102,8 @@ def bulk_import_inventory(request):
         )
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def export_inventory(request):
     """
     Export inventory to CSV file
