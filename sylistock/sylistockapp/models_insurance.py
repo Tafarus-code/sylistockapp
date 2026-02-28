@@ -27,7 +27,7 @@ class InsurancePolicy(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4,
                           editable=False)
     merchant = models.ForeignKey('MerchantProfile', on_delete=models.CASCADE,
-                                related_name='insurance_policies')
+                                 related_name='insurance_policies')
     policy_number = models.CharField(max_length=50, unique=True)
     policy_type = models.CharField(max_length=20, choices=POLICY_TYPES,
                                    default='basic')
@@ -156,7 +156,7 @@ class InsuranceRiskAssessment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4,
                           editable=False)
     merchant = models.ForeignKey('MerchantProfile', on_delete=models.CASCADE,
-                                related_name='risk_assessments')
+                                 related_name='risk_assessments')
     risk_level = models.CharField(max_length=20, choices=RISK_LEVELS,
                                   default='medium')
     risk_score = models.IntegerField(default=50,
