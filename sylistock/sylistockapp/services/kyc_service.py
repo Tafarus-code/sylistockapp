@@ -127,8 +127,8 @@ class KYCService:
         return 30
 
     def verify_bank_account(self, kyc_id, account_number, bank_name,
-                         account_type):
-                           """Verify bank account details"""
+                            account_type):
+        """Verify bank account details"""
         try:
             kyc_verification = KYCVerification.objects.get(id=kyc_id)
 
@@ -181,8 +181,8 @@ class KYCService:
         bank_account.verification_score = verification_score
         bank_account.issues = issues
         bank_account.status = ('verified' if verification_score >= 70
-                           else 'rejected')
-                           bank_account.save()
+                               else 'rejected')
+        bank_account.save()
 
         return {
             'score': verification_score,
@@ -395,8 +395,8 @@ class KYCService:
             new_verification = KYCVerification.objects.create(
                 merchant=kyc_verification.merchant,
                 verification_level=(verification_level or
-                               kyc_verification.verification_level),
-                               status='pending',
+                                    kyc_verification.verification_level),
+                status='pending',
                 overall_score=0,
                 previous_verification=kyc_verification,
             )
