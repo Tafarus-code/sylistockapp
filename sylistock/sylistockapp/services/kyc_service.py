@@ -1,14 +1,8 @@
 """
 KYC (Know Your Customer) Service for bank compliance
 """
-import os
-import json
-import uuid
 from datetime import datetime, timedelta
-from django.utils import timezone
-from django.conf import settings
 from django.core.files.base import ContentFile
-from django.contrib.auth.models import User
 from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
                            ComplianceCheck)
 from ..models import MerchantProfile

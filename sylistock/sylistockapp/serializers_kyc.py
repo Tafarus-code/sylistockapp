@@ -2,187 +2,274 @@
 KYC (Know Your Customer) serializers for API
 """
 from rest_framework import serializers
-from ..models_kyc import KYCDocument, KYCVerification, BankAccount, ComplianceCheck
+from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
+                           ComplianceCheck)
 from ..models import MerchantProfile
 
 
 class KYCDocumentSerializer(serializers.ModelSerializer):
     """Serializer for KYC documents"""
-    
+    document_type_display = serializers.CharField(
+        source='get_document_type_display', read_only=True
+    )
+    verification_status_display = serializers.CharField(
+        source='get_verification_status_display', read_only=True
+    )
+    is_expired = serializers.BooleanField(read_only=True)
+    is_valid = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = KYCDocument
         fields = [
-            'id', 'merchant', 'document_type', 'document_number',
-            'document_image', 'verification_status', 'verification_notes',
-            'expiry_date', 'issued_date', 'created_at', 'updated_at',
-            'verified_at', 'verified_by'
+            'id', 'verification', 'document_type', 'document_type_display',
+            'file_name', 'file', 'file_size', 'mime_type', 'upload_date',
+            'verification_status', 'verification_status_display',
+            'verification_score', 'verification_notes', 'expiry_date',
+            'is_expired', 'is_valid'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'verified_at', 'verified_by']
-    
-    def validate_document_type(self, value):
-        """Validate document type"""
-        valid_types = [choice[0] for choice in KYCDocument.DOCUMENT_TYPES]
-        if value not in valid_types:
-            raise serializers.ValidationError(f"Invalid document type. Must be one of: {valid_types}")
+        read_only_fields = [
+            'id', 'upload_date', 'verification_score', 'is_expired', 'is_valid'
+        ]
+
+    def validate_file_size(self, value):
+        """Validate file size (max 10MB)"""
+        max_size = 10 * 1024 * 1024  # 10MB
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f"File size cannot exceed 10MB. Current size: "
+                f"{value.size / 1024 / 1024:.2f}MB"
+            )
         return value
-    
+
     def validate_expiry_date(self, value):
         """Validate expiry date is not in the past"""
-        if value and value < serializers.DateField().to_internal_value('today'):
-            raise serializers.ValidationError("Expiry date cannot be in the past")
+        from django.utils import timezone
+        if value and value < timezone.now().date():
+            raise serializers.ValidationError(
+                "Expiry date cannot be in the past"
+            )
         return value
 
 
 class KYCVerificationSerializer(serializers.ModelSerializer):
     """Serializer for KYC verification"""
-    documents = KYCDocumentSerializer(many=True, read_only=True, source='kyc_documents')
-    required_documents = serializers.SerializerMethodField()
-    is_approved = serializers.ReadOnlyField()
-    
+    merchant_name = serializers.CharField(
+        source='merchant.business_name', read_only=True
+    )
+    verification_level_display = serializers.CharField(
+        source='get_verification_level_display', read_only=True
+    )
+    status_display = serializers.CharField(
+        source='get_status_display', read_only=True
+    )
+    reviewer_name = serializers.CharField(
+        source='reviewer.get_full_name', read_only=True
+    )
+    completion_percentage = serializers.IntegerField(read_only=True)
+    is_approved = serializers.BooleanField(read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+    documents_count = serializers.SerializerMethodField()
+
     class Meta:
         model = KYCVerification
         fields = [
-            'id', 'merchant', 'verification_level', 'status', 'overall_score',
-            'risk_assessment', 'compliance_notes', 'approved_at', 'approved_by',
-            'expires_at', 'created_at', 'updated_at', 'documents', 'required_documents', 'is_approved'
+            'id', 'merchant', 'merchant_name', 'verification_level',
+            'verification_level_display', 'status', 'status_display',
+            'overall_score', 'submitted_at', 'reviewed_at', 'approved_at',
+            'expires_at', 'reviewer', 'reviewer_name', 'review_notes',
+            'completion_percentage', 'is_approved', 'is_expired',
+            'documents_count'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'approved_at', 'approved_by']
-    
-    def get_required_documents(self, obj):
-        """Get required documents based on verification level"""
-        return obj.get_required_documents()
+        read_only_fields = [
+            'id', 'submitted_at', 'reviewed_at', 'approved_at', 'reviewer',
+            'completion_percentage', 'is_approved', 'is_expired'
+        ]
+
+    def get_documents_count(self, obj):
+        """Get count of uploaded documents"""
+        return obj.documents.count()
+
+    def validate_expires_at(self, value):
+        """Validate expiry date is after submission date"""
+        if value and value <= obj.submitted_at.date():
+            raise serializers.ValidationError(
+                "Expiry date must be after submission date"
+            )
+        return value
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
     """Serializer for bank accounts"""
-    masked_account_number = serializers.ReadOnlyField()
-    
+    account_type_display = serializers.CharField(
+        source='get_account_type_display', read_only=True
+    )
+    verification_status_display = serializers.CharField(
+        source='get_verification_status_display', read_only=True
+    )
+    masked_account_number = serializers.CharField(read_only=True)
+
     class Meta:
         model = BankAccount
         fields = [
-            'id', 'merchant', 'bank_name', 'bank_code', 'account_number',
-            'masked_account_number', 'account_name', 'account_type',
-            'is_primary', 'is_verified', 'verification_date',
-            'created_at', 'updated_at'
+            'id', 'verification', 'account_number', 'account_name',
+            'bank_name', 'bank_code', 'branch_name', 'account_type',
+            'account_type_display', 'verification_status',
+            'verification_status_display', 'verification_score',
+            'verification_notes', 'created_at', 'verified_at',
+            'masked_account_number'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'verification_date', 'masked_account_number']
-    
-    def create(self, validated_data):
-        """Handle setting primary account logic"""
-        is_primary = validated_data.get('is_primary', False)
-        merchant = validated_data['merchant']
-        
-        # If setting as primary, unset other primary accounts
-        if is_primary:
-            BankAccount.objects.filter(merchant=merchant, is_primary=True).update(is_primary=False)
-        
-        return super().create(validated_data)
-    
+        read_only_fields = [
+            'id', 'created_at', 'verified_at', 'masked_account_number'
+        ]
+
     def validate_account_number(self, value):
-        """Mask account number in response"""
-        # This will be handled by the masked_account_number field
+        """Validate account number format"""
+        if len(value) < 8:
+            raise serializers.ValidationError(
+                "Account number must be at least 8 digits"
+            )
         return value
+
+    def validate_account_name(self, value):
+        """Validate account name matches account holder"""
+        if not value.strip():
+            raise serializers.ValidationError("Account name is required")
+        return value.strip()
 
 
 class ComplianceCheckSerializer(serializers.ModelSerializer):
     """Serializer for compliance checks"""
-    
+    check_type_display = serializers.CharField(
+        source='get_check_type_display', read_only=True
+    )
+    result_display = serializers.CharField(
+        source='get_result_display', read_only=True
+    )
+    percentage_score = serializers.IntegerField(read_only=True)
+    checked_by_name = serializers.CharField(
+        source='checked_by.get_full_name', read_only=True
+    )
+
     class Meta:
         model = ComplianceCheck
         fields = [
-            'id', 'merchant', 'check_type', 'status', 'check_result',
-            'risk_score', 'recommendations', 'performed_at', 'next_check_due'
+            'id', 'verification', 'check_type', 'check_type_display',
+            'result', 'result_display', 'score', 'max_score',
+            'percentage_score', 'details', 'checked_at', 'checked_by',
+            'checked_by_name'
         ]
-        read_only_fields = ['id', 'performed_at']
+        read_only_fields = [
+            'id', 'checked_at', 'checked_by', 'percentage_score'
+        ]
 
-
-class KYCInitiateSerializer(serializers.Serializer):
-    """Serializer for initiating KYC process"""
-    merchant_id = serializers.UUIDField()
-    verification_level = serializers.ChoiceField(
-        choices=KYCVerification.VERIFICATION_LEVELS,
-        default='basic'
-    )
-    
-    def validate_merchant_id(self, value):
-        """Validate merchant exists"""
-        if not MerchantProfile.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Merchant not found")
+    def validate_score(self, value):
+        """Ensure score is within valid range"""
+        if not 0 <= value <= self.max_score:
+            raise serializers.ValidationError(
+                f"Score must be between 0 and {self.max_score}"
+            )
         return value
 
 
-class KYCDocumentUploadSerializer(serializers.Serializer):
+class CreateKYCVerificationSerializer(serializers.ModelSerializer):
+    """Serializer for creating KYC verification"""
+    class Meta:
+        model = KYCVerification
+        fields = ['merchant', 'verification_level']
+
+    def validate_merchant(self, value):
+        """Validate merchant exists and has no active KYC"""
+        existing_kyc = KYCVerification.objects.filter(
+            merchant=value, status='approved'
+        ).first()
+
+        if existing_kyc and not existing_kyc.is_expired():
+            raise serializers.ValidationError(
+                "Merchant already has an active KYC verification"
+            )
+
+        return value
+
+
+class UploadDocumentSerializer(serializers.ModelSerializer):
     """Serializer for uploading KYC documents"""
-    merchant_id = serializers.UUIDField()
-    document_type = serializers.ChoiceField(choices=KYCDocument.DOCUMENT_TYPES)
-    document_number = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    document_image = serializers.ImageField(required=False)
-    expiry_date = serializers.DateField(required=False, allow_null=True)
-    issued_date = serializers.DateField(required=False, allow_null=True)
-    
-    def validate_merchant_id(self, value):
-        """Validate merchant exists"""
-        if not MerchantProfile.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Merchant not found")
+    class Meta:
+        model = KYCDocument
+        fields = [
+            'verification', 'document_type', 'file', 'expiry_date',
+            'verification_notes'
+        ]
+
+    def validate_file(self, value):
+        """Validate uploaded file"""
+        # File size validation
+        max_size = 10 * 1024 * 1024  # 10MB
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f"File size cannot exceed 10MB. Current size: "
+                f"{value.size / 1024 / 1024:.2f}MB"
+            )
+
+        # File type validation
+        allowed_types = ['image/jpeg', 'image/png', 'application/pdf']
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError(
+                "Only JPEG, PNG, and PDF files are allowed"
+            )
+
         return value
 
 
-class BankAccountCreateSerializer(serializers.Serializer):
-    """Serializer for creating bank accounts"""
-    merchant_id = serializers.UUIDField()
-    bank_name = serializers.CharField(max_length=100)
-    bank_code = serializers.CharField(max_length=20)
-    account_number = serializers.CharField(max_length=50)
-    account_name = serializers.CharField(max_length=100)
-    account_type = serializers.ChoiceField(
-        choices=BankAccount.ACCOUNT_TYPES,
-        default='business'
-    )
-    is_primary = serializers.BooleanField(default=False)
-    
-    def validate_merchant_id(self, value):
-        """Validate merchant exists"""
-        if not MerchantProfile.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Merchant not found")
-        return value
-    
+class AddBankAccountSerializer(serializers.ModelSerializer):
+    """Serializer for adding bank accounts"""
+    class Meta:
+        model = BankAccount
+        fields = [
+            'account_number', 'account_name', 'bank_name', 'bank_code',
+            'branch_name', 'account_type'
+        ]
+
     def validate_account_number(self, value):
         """Validate account number format"""
         if not value.isdigit():
-            raise serializers.ValidationError("Account number must contain only digits")
+            raise serializers.ValidationError(
+                "Account number must contain only digits"
+            )
+
         if len(value) < 8:
-            raise serializers.ValidationError("Account number must be at least 8 digits")
+            raise serializers.ValidationError(
+                "Account number must be at least 8 digits"
+            )
+
         return value
 
-
-class ComplianceCheckRequestSerializer(serializers.Serializer):
-    """Serializer for compliance check requests"""
-    merchant_id = serializers.UUIDField()
-    
-    def validate_merchant_id(self, value):
-        """Validate merchant exists"""
-        if not MerchantProfile.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Merchant not found")
-        return value
+    def validate_account_name(self, value):
+        """Validate account name"""
+        if not value.strip():
+            raise serializers.ValidationError("Account name is required")
+        return value.strip()
 
 
-class KYCEvaluationSerializer(serializers.Serializer):
-    """Serializer for KYC evaluation requests"""
-    merchant_id = serializers.UUIDField()
-    
-    def validate_merchant_id(self, value):
-        """Validate merchant exists"""
-        if not MerchantProfile.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Merchant not found")
-        return value
+class UpdateKYCStatusSerializer(serializers.Serializer):
+    """Serializer for updating KYC status"""
+    status = serializers.ChoiceField(
+        choices=KYCVerification.STATUS_CHOICES,
+        required=True
+    )
+    overall_score = serializers.IntegerField(
+        required=False, min_value=0, max_value=100
+    )
+    review_notes = serializers.CharField(
+        required=False, allow_blank=True, max_length=1000
+    )
+    expires_at = serializers.DateTimeField(
+        required=False, allow_null=True
+    )
 
-
-class KYCStatusSerializer(serializers.Serializer):
-    """Serializer for KYC status requests"""
-    merchant_id = serializers.UUIDField()
-    
-    def validate_merchant_id(self, value):
-        """Validate merchant exists"""
-        if not MerchantProfile.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Merchant not found")
+    def validate_status(self, value):
+        """Validate status transition"""
+        if value == 'approved' and self.overall_score < 70:
+            raise serializers.ValidationError(
+                "Overall score must be at least 70 for approval"
+            )
         return value
