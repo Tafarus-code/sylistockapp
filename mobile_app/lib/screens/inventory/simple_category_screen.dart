@@ -166,7 +166,7 @@ class _SimpleCategoryScreenState extends State<SimpleCategoryScreen> {
     );
 
     try {
-      await _categoryBox.put(category.id, category.toJson());
+      await _categoryBox.put(category.id, category);
       await _loadCategories();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Category added successfully!')),
@@ -241,7 +241,7 @@ class _SimpleCategoryScreenState extends State<SimpleCategoryScreen> {
                 );
 
                 try {
-                  await _categoryBox.put(category.id, category.toJson());
+                  await _categoryBox.put(category.id, category);
                   await _loadCategories();
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
