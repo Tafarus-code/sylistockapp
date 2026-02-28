@@ -4,6 +4,7 @@ from .views_production import (
     remove_stock_item,
     update_stock_item,
     get_stock_items,
+    inventory_history,
 )
 from .views_alerts import (
     low_stock_alerts,
@@ -16,6 +17,7 @@ from .views_reporting import (
 from .views_stock_management import (
     search_items,
     get_item_details,
+    bulk_update_prices,
 )
 from .views_bulk_operations import (
     bulk_import_inventory,
@@ -55,6 +57,9 @@ urlpatterns = [
     path('items/remove/<int:item_id>/', remove_stock_item,
          name='remove-stock-item'),
     path('items/search/', search_items, name='search-items'),
+    path('items/history/', inventory_history, name='inventory-history'),
+    path('items/bulk-update-prices/', bulk_update_prices,
+         name='bulk-update-prices'),
     path('items/<int:item_id>/', get_item_details, name='item-details'),
 
     # Alerts
@@ -80,11 +85,16 @@ urlpatterns = [
          name='kyc-add-bank-account'),
     path('kyc/compliance-checks/', perform_compliance_checks,
          name='kyc-compliance-checks'),
-    path('kyc/evaluate/', evaluate_kyc_application, name='kyc-evaluate'),
-    path('kyc/status/', get_kyc_status, name='kyc-status'),
-    path('kyc/documents/', get_kyc_documents, name='kyc-documents'),
-    path('kyc/bank-accounts/', get_bank_accounts, name='kyc-bank-accounts'),
-    path('kyc/compliance/', get_compliance_checks, name='kyc-compliance'),
+    path('kyc/evaluate/', evaluate_kyc_application,
+         name='kyc-evaluate'),
+    path('kyc/status/<uuid:kyc_id>/', get_kyc_status,
+         name='kyc-status'),
+    path('kyc/documents/<uuid:kyc_id>/', get_kyc_documents,
+         name='kyc-documents'),
+    path('kyc/bank-accounts/<uuid:kyc_id>/', get_bank_accounts,
+         name='kyc-bank-accounts'),
+    path('kyc/compliance/<uuid:kyc_id>/', get_compliance_checks,
+         name='kyc-compliance'),
 
     # Insurance
     path('insurance/calculate-premium/', calculate_premium,
@@ -97,14 +107,15 @@ urlpatterns = [
          name='insurance-submit-claim'),
     path('insurance/process-claim/', process_claim,
          name='insurance-process-claim'),
-    path('insurance/policy-details/', get_policy_details,
-         name='insurance-policy-details'),
-    path('insurance/merchant-policies/', get_merchant_policies,
-         name='insurance-merchant-policies'),
-    path('insurance/policy-claims/', get_policy_claims,
-         name='insurance-policy-claims'),
-    path('insurance/policy-premiums/', get_policy_premiums,
-         name='insurance-policy-premiums'),
-    path('insurance/risk-assessment/', get_merchant_risk_assessment,
+    path('insurance/policy/<uuid:policy_id>/',
+         get_policy_details, name='insurance-policy-details'),
+    path('insurance/merchant/<int:merchant_id>/policies/',
+         get_merchant_policies, name='insurance-merchant-policies'),
+    path('insurance/policy/<uuid:policy_id>/claims/',
+         get_policy_claims, name='insurance-policy-claims'),
+    path('insurance/policy/<uuid:policy_id>/premiums/',
+         get_policy_premiums, name='insurance-policy-premiums'),
+    path('insurance/merchant/<int:merchant_id>/risk/',
+         get_merchant_risk_assessment,
          name='insurance-risk-assessment'),
 ]

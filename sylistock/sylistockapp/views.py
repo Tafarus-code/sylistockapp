@@ -30,39 +30,64 @@ class InventoryListView(APIView):
     """
 
     def get(self, request):
-        # For demo, return some sample data
-        # In real app, you'd query your actual inventory models
-        sample_items = [
-            {
-                'id': 1,
-                'barcode': '123456789',
-                'name': 'Sample Product 1',
-                'quantity': 10,
-                'description': 'A sample product for testing',
-                'price': '29.99',
-                'created_at': '2023-01-01T00:00:00Z'
-            },
-            {
-                'id': 2,
-                'barcode': '987654321',
-                'name': 'Sample Product 2',
-                'quantity': 5,
-                'description': 'Another sample product',
-                'price': '19.99',
-                'created_at': '2023-01-02T00:00:00Z'
-            }
-        ]
-        return Response(sample_items)
+        merchant = getattr(request.user, 'merchantprofile', None)
+        if not merchant:
+            return Response(
+                {'error': 'Merchant profile not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        items = StockItem.objects.filter(
+            merchant=merchant
+        ).select_related('product')
+
+        items_data = []
+        for item in items:
+            items_data.append({
+                'id': item.pk,
+                'barcode': item.product.barcode,
+                'name': item.product.name,
+                'quantity': item.quantity,
+                'description': item.product.description,
+                'price': str(item.sale_price),
+                'created_at': item.created_at,
+            })
+        return Response(items_data)
 
     def post(self, request):
         serializer = InventoryItemSerializer(data=request.data)
         if serializer.is_valid():
-            # For demo, just return the data with a new ID
-            # In real app, you'd save to database
-            response_data = serializer.validated_data
-            response_data['id'] = 999  # Mock ID
-            response_data['created_at'] = '2023-01-01T00:00:00Z'
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            data = serializer.validated_data
+            merchant = getattr(request.user, 'merchantprofile', None)
+            if not merchant:
+                return Response(
+                    {'error': 'Merchant profile not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            with transaction.atomic():
+                product, _ = Product.objects.get_or_create(
+                    barcode=data['barcode'],
+                    defaults={
+                        'name': data['name'],
+                        'description': data.get('description', ''),
+                    }
+                )
+                stock_item = StockItem.objects.create(
+                    merchant=merchant,
+                    product=product,
+                    quantity=data.get('quantity', 0),
+                    sale_price=data.get('price', 0),
+                )
+
+            return Response({
+                'id': stock_item.pk,
+                'barcode': product.barcode,
+                'name': product.name,
+                'quantity': stock_item.quantity,
+                'price': str(stock_item.sale_price),
+                'created_at': stock_item.created_at,
+            }, status=status.HTTP_201_CREATED)
         return Response(
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )
@@ -73,58 +98,68 @@ class InventoryDetailView(APIView):
     Retrieve, update or delete an inventory item
     """
 
-    def get_object(self, pk):
-        # For demo, return mock data
-        # In real app, you'd get from database
-        if pk == 1:
-            return {
-                'id': 1,
-                'barcode': '123456789',
-                'name': 'Sample Product 1',
-                'quantity': 10,
-                'description': 'A sample product for testing',
-                'price': '29.99',
-                'created_at': '2023-01-01T00:00:00Z'
-            }
-        return None
+    def get_object(self, pk, user):
+        merchant = getattr(user, 'merchantprofile', None)
+        if not merchant:
+            return None
+        try:
+            return StockItem.objects.select_related('product').get(
+                pk=pk, merchant=merchant
+            )
+        except StockItem.DoesNotExist:
+            return None
 
     def get(self, request, pk):
-        item = self.get_object(pk)
+        item = self.get_object(pk, request.user)
         if item:
-            return Response(item)
+            return Response({
+                'id': item.pk,
+                'barcode': item.product.barcode,
+                'name': item.product.name,
+                'quantity': item.quantity,
+                'description': item.product.description,
+                'price': str(item.sale_price),
+                'created_at': item.created_at,
+            })
         return Response(
             {'error': 'Item not found'},
             status=status.HTTP_404_NOT_FOUND
         )
 
     def patch(self, request, pk):
-        item = self.get_object(pk)
+        item = self.get_object(pk, request.user)
         if not item:
             return Response(
                 {'error': 'Item not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Update fields
-        for field, value in request.data.items():
-            allowed_fields = [
-                'barcode', 'name', 'quantity',
-                'description', 'price'
-            ]
-            if field in allowed_fields:
-                item[field] = value
+        if 'quantity' in request.data:
+            item.quantity = int(request.data['quantity'])
+        if 'price' in request.data:
+            item.sale_price = request.data['price']
+        if 'name' in request.data:
+            item.product.name = request.data['name']
+            item.product.save()
+        item.save()
 
-        return Response(item)
+        return Response({
+            'id': item.pk,
+            'barcode': item.product.barcode,
+            'name': item.product.name,
+            'quantity': item.quantity,
+            'price': str(item.sale_price),
+        })
 
     def delete(self, request, pk):
-        item = self.get_object(pk)
+        item = self.get_object(pk, request.user)
         if not item:
             return Response(
                 {'error': 'Item not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # In real app, you'd delete from database
+        item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

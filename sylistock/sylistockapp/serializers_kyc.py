@@ -76,7 +76,7 @@ class KYCVerificationSerializer(serializers.ModelSerializer):
             'id', 'merchant', 'merchant_name', 'verification_level',
             'verification_level_display', 'status', 'status_display',
             'overall_score', 'submitted_at', 'reviewed_at', 'approved_at',
-            'expires_at', 'reviewer', 'reviewer_name', 'review_notes',
+            'expires_at', 'reviewer', 'reviewer_name',
             'completion_percentage', 'is_approved', 'is_expired',
             'documents_count'
         ]
@@ -164,9 +164,10 @@ class ComplianceCheckSerializer(serializers.ModelSerializer):
 
     def validate_score(self, value):
         """Ensure score is within valid range"""
-        if not 0 <= value <= self.max_score:
+        max_score = self.initial_data.get('max_score', 100)
+        if not 0 <= value <= int(max_score):
             raise serializers.ValidationError(
-                f"Score must be between 0 and {self.max_score}"
+                f"Score must be between 0 and {max_score}"
             )
         return value
 
@@ -268,7 +269,8 @@ class UpdateKYCStatusSerializer(serializers.Serializer):
 
     def validate_status(self, value):
         """Validate status transition"""
-        if value == 'approved' and self.overall_score < 70:
+        overall_score = self.initial_data.get('overall_score', 0)
+        if value == 'approved' and int(overall_score) < 70:
             raise serializers.ValidationError(
                 "Overall score must be at least 70 for approval"
             )

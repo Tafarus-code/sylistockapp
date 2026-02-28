@@ -54,11 +54,25 @@ except ImportError:
     except ImportError:
         from .views_flutter import flutter_app
 
+# Import auth views
+try:
+    from sylistockapp.views_auth import (
+        register, login, logout, profile
+    )
+except ImportError:
+    from .views_auth import register, login, logout, profile
+
 urlpatterns = [
     path('', api_home, name='home'),
     path('api/', api_info, name='api-info'),
     path('app/', flutter_app, name='flutter-app'),
     path('admin/', admin.site.urls),
+
+    # Authentication
+    path('api/auth/register/', register, name='register'),
+    path('api/auth/login/', login, name='login'),
+    path('api/auth/logout/', logout, name='logout'),
+    path('api/auth/profile/', profile, name='profile'),
 
     # Versioning your API is a Fintech "Must-Have"
     path('inventory/', include('sylistockapp.urls')),

@@ -20,6 +20,7 @@ def add_stock_item(request):
         name = request.data.get('name', '').strip()
         quantity = int(request.data.get('quantity', 0))
         price = float(request.data.get('price', 0))
+        cost_price = float(request.data.get('cost_price', 0))
 
         if not barcode or not name:
             return Response(
@@ -43,6 +44,7 @@ def add_stock_item(request):
                 merchant=merchant_profile,
                 product=product,
                 quantity=quantity,
+                cost_price=cost_price,
                 sale_price=price,
             )
 
@@ -52,7 +54,12 @@ def add_stock_item(request):
                 product=product,
                 action='IN',
                 quantity_changed=quantity,
-                device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
+                source=request.META.get(
+                    'HTTP_X_SCAN_SOURCE', 'MANUAL'
+                ),
+                device_id=request.META.get(
+                    'HTTP_X_DEVICE_ID', 'web'
+                ),
             )
 
         return Response({
@@ -119,7 +126,12 @@ def remove_stock_item(request, item_id):
                 product=stock_item.product,
                 action='OUT',
                 quantity_changed=-quantity,
-                device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
+                source=request.META.get(
+                    'HTTP_X_SCAN_SOURCE', 'MANUAL'
+                ),
+                device_id=request.META.get(
+                    'HTTP_X_DEVICE_ID', 'web'
+                ),
             )
 
         return Response({
@@ -173,9 +185,14 @@ def update_stock_item(request, item_id):
                 InventoryLog.objects.create(
                     merchant=merchant_profile,
                     product=stock_item.product,
-                    action='ADJUST',
+                    action='ADJ',
                     quantity_changed=quantity - old_quantity,
-                    device_id=request.META.get('HTTP_X_DEVICE_ID', 'web'),
+                    source=request.META.get(
+                        'HTTP_X_SCAN_SOURCE', 'MANUAL'
+                    ),
+                    device_id=request.META.get(
+                        'HTTP_X_DEVICE_ID', 'web'
+                    ),
                 )
 
             if price is not None:
@@ -237,7 +254,7 @@ def get_stock_items(request):
                 'name': item.product.name,
                 'quantity': item.quantity,
                 'price': item.sale_price,
-                'last_updated': item.pk,  # Using pk as placeholder
+                'last_updated': item.updated_at,
             })
 
         return Response({
@@ -259,6 +276,8 @@ def get_stock_items(request):
         )
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def inventory_history(request):
     """
     Get inventory change history

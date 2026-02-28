@@ -115,7 +115,7 @@ def perform_compliance_checks(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def evaluate_kyc_application(request):
-    """Evaluate KYC application"""
+    """Evaluate KYC application — returns status summary with decision"""
     try:
         kyc_id = request.data.get('kyc_id')
 
@@ -125,7 +125,32 @@ def evaluate_kyc_application(request):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         kyc_service = KYCService()
-        result = kyc_service.run_compliance_check(kyc_id)
+
+        # Get current status
+        status_result = kyc_service.get_kyc_status(kyc_id)
+        if not status_result.get('success', False):
+            return Response(status_result)
+
+        # Determine approval decision
+        score = status_result.get('overall_score', 0)
+        kyc_status = status_result.get('status', 'pending')
+
+        decision = 'approved' if score >= 70 else 'rejected'
+        if kyc_status == 'pending':
+            decision = 'pending_review'
+
+        result = {
+            'success': True,
+            'kyc_id': str(kyc_id),
+            'decision': decision,
+            'overall_score': score,
+            'status': kyc_status,
+            'verification_level': status_result.get(
+                'verification_level'
+            ),
+            'submitted_at': status_result.get('submitted_at'),
+            'reviewed_at': status_result.get('reviewed_at'),
+        }
 
         return Response(result)
 

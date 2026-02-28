@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
-from .models import MerchantProfile, InventoryLog
+from .models import MerchantProfile, InventoryLog, StockItem
 
 
 @api_view(['GET'])
@@ -25,25 +25,43 @@ def sales_report(request):
             timestamp__gte=start_date
         ).select_related('product')
 
-        # Calculate total sales
+        # Build price lookup from StockItems
+        stock_prices = dict(
+            StockItem.objects.filter(
+                merchant=merchant_profile
+            ).values_list('product_id', 'sale_price')
+        )
+
+        # Calculate total sales and revenue
         total_sales = 0
+        total_revenue = 0
         sales_data = []
         device_counts = {}
 
         for log in sales_logs:
-            # Simplified calculation - in real app, track actual sales
             quantity = abs(log.quantity_changed)
             total_sales += quantity
 
+            # Calculate revenue
+            unit_price = float(
+                stock_prices.get(log.product_id, 0)
+            )
+            revenue = unit_price * quantity
+            total_revenue += revenue
+
             # Count device usage
             device_id = log.device_id or 'unknown'
-            device_counts[device_id] = device_counts.get(device_id, 0) + 1
+            device_counts[device_id] = (
+                device_counts.get(device_id, 0) + 1
+            )
 
             sales_data.append({
                 'date': log.timestamp.date(),
                 'product_name': log.product.name,
                 'barcode': log.product.barcode,
                 'quantity': quantity,
+                'unit_price': unit_price,
+                'revenue': revenue,
                 'device_id': log.device_id,
             })
 
@@ -55,6 +73,7 @@ def sales_report(request):
 
         return Response({
             'total_sales': total_sales,
+            'total_revenue': total_revenue,
             'sales_count': len(sales_data),
             'period_days': days,
             'sales_data': sales_data,

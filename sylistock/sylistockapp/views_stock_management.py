@@ -37,7 +37,7 @@ def search_items(request):
                 'name': item.product.name,
                 'quantity': item.quantity,
                 'price': item.sale_price,
-                'last_updated': item.pk,  # Using pk as placeholder
+                'last_updated': item.updated_at,
             })
 
         return Response({
@@ -84,8 +84,8 @@ def get_item_details(request, item_id):
             'name': item.product.name,
             'quantity': item.quantity,
             'price': item.sale_price,
-            'created_at': item.pk,  # Using pk as placeholder
-            'updated_at': item.pk,  # Using pk as placeholder
+            'created_at': item.created_at,
+            'updated_at': item.updated_at,
         })
 
     except MerchantProfile.DoesNotExist:
