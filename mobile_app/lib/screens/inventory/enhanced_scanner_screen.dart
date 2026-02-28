@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/action_button.dart';
-import '../inventory/item_form_screen.dart';
-import '../inventory/inventory_list_screen.dart';
-import '../inventory/category_management_screen.dart';
-import '../../services/inventory_service.dart';
-import '../../models/inventory_item.dart';
+import '../../services/enhanced_inventory_service.dart';
+import '../../models/enhanced_inventory_item.dart';
+import 'item_form_screen.dart';
+import 'inventory_list_screen.dart';
+import 'category_management_screen.dart';
 
 class EnhancedScannerScreen extends ConsumerStatefulWidget {
   const EnhancedScannerScreen({Key? key}) : super(key: key);
@@ -22,7 +23,7 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
   bool _useCamera = false;
   String? _lastScannedCode;
   int _scanCount = 0;
-  final GlobalKey<MobileScannerControllerState> _scannerKey = GlobalKey();
+  final MobileScannerController _scannerController = MobileScannerController();
 
   @override
   void initState() {
@@ -105,12 +106,7 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
 
   Widget _buildCameraScanner() {
     return MobileScanner(
-      key: _scannerKey,
-      controller: MobileScannerController(
-        detectionSpeed: DetectionSpeed.normal,
-        facing: CameraFacing.back,
-        torchEnabled: false,
-      ),
+      controller: _scannerController,
       onDetect: (capture) {
         final List<Barcode> barcodes = capture.barcodes;
         for (final barcode in barcodes) {
@@ -353,7 +349,7 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
   }
 
   void _searchForItem(String code) async {
-    final inventoryService = ref.read(inventoryServiceProvider);
+    final inventoryService = ref.read(enhancedInventoryServiceProvider);
     final item = await inventoryService.getItemByBarcode(code);
     
     if (item != null) {
@@ -385,7 +381,7 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
     }
   }
 
-  void _navigateToItemDetails(InventoryItem item) {
+  void _navigateToItemDetails(EnhancedInventoryItem item) {
     // TODO: Navigate to item details screen
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Item details for ${item.name}')),

@@ -611,7 +611,7 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
             labelText: 'Tag name',
             hintText: 'Enter tag name',
           ),
-          onSubmitted: (value) {
+          onFieldSubmitted: (value) {
             if (value.isNotEmpty && !_tags.contains(value)) {
               setState(() => _tags.add(value));
             }

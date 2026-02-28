@@ -362,7 +362,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                   DropdownMenuItem(value: 'unitPrice', child: Text('Unit Price')),
                   DropdownMenuItem(value: 'createdAt', child: Text('Created Date')),
                 ],
-                onChanged: (value) => setState(() => _sortBy = value),
+                onChanged: (value) => setState(() => _sortBy = value ?? 'name'),
               ),
               const SizedBox(height: 16),
               SwitchListTile(

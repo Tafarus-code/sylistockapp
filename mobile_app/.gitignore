@@ -130,7 +130,6 @@ local.properties
 *.app
 *.dill
 *.packages
-*.g.dart
 *.freezed.dart
 *.mocks.dart
 

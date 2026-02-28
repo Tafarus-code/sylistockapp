@@ -165,7 +165,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
                   child: const Text('Delete'),
                 ),
               ],
-              onSelected: (value) => _handleCategoryAction(category, value),
+              onSelected: (value) => _handleCategoryAction(category, value as String),
             ),
           ],
         ),
