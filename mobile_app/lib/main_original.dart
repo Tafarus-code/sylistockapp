@@ -3,13 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'theme/app_theme.dart';
 import 'widgets/main_navigation.dart';
-import 'screens/inventory/clean_category_screen.dart';
-import 'screens/bankability_dashboard_screen.dart';
-import 'screens/kyc/kyc_dashboard_screen.dart';
-import 'screens/insurance/insurance_dashboard_screen.dart';
+import 'screens/inventory/enhanced_scanner_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/item_details_screen.dart';
-import 'screens/reports/reports_screen.dart';
+import 'screens/bankability_dashboard_screen.dart';
+import 'providers/inventory_provider.dart';
+import 'services/local_storage_service.dart';
+import 'services/bankability_engine.dart';
+import 'services/what3words_service.dart';
+import 'services/network_optimization_service.dart';
+import 'services/enhanced_inventory_service.dart';
+import 'models/inventory_item.dart';
+import 'models/enhanced_inventory_item.dart';
+import 'screens/inventory/simple_category_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +27,10 @@ void main() async {
     Hive.registerAdapter(InventoryCategoryAdapter());
     Hive.registerAdapter(SimpleCategoryAdapter());
     Hive.registerAdapter(WorkingCategoryAdapter());
-    Hive.registerAdapter(CleanCategoryAdapter());
+    
+    // Initialize enhanced inventory service
+    final enhancedInventoryService = EnhancedInventoryService();
+    await enhancedInventoryService.initialize();
     
     // Initialize local storage
     final localStorageService = LocalStorageService();
@@ -34,10 +42,8 @@ void main() async {
   } catch (e) {
     print('Initialization error: $e');
   }
-
-  runApp(const ProviderScope(
-    child: SylistockApp(),
-  ));
+  
+  runApp(const ProviderScope(child: SylistockApp()));
 }
 
 class SylistockApp extends ConsumerWidget {

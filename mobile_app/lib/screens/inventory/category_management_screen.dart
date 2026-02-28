@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../../theme/app_theme.dart';
-import '../../services/enhanced_inventory_service.dart';
 import '../../models/enhanced_inventory_item.dart';
+import '../test_hive_screen.dart';
 
 class CategoryManagementScreen extends ConsumerStatefulWidget {
   const CategoryManagementScreen({Key? key}) : super(key: key);
@@ -13,7 +15,7 @@ class CategoryManagementScreen extends ConsumerStatefulWidget {
 
 class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScreen> {
   bool _isLoading = false;
-  List<InventoryCategory> _categories = [];
+  List<TestCategory> _categories = [];
 
   @override
   void initState() {
@@ -25,11 +27,19 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
     setState(() => _isLoading = true);
     
     try {
-      final inventoryService = ref.read(enhancedInventoryServiceProvider);
-      final categories = await inventoryService.getAllCategories();
+      final categoryBox = await Hive.openBox<TestCategory>('categories');
+      final keys = categoryBox.keys;
+      _categories.clear();
+      
+      for (final key in keys) {
+        final category = categoryBox.get(key);
+        if (category != null) {
+          _categories.add(category);
+        }
+      }
       
       setState(() {
-        _categories = categories;
+        _categories = _categories;
         _isLoading = false;
       });
     } catch (e) {
