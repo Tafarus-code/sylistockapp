@@ -161,7 +161,7 @@ class InsuranceRiskAssessment(models.Model):
                                   default='medium')
     risk_score = models.IntegerField(default=50,
                                     help_text="Risk score (0-100)")
-                                        # Assessment factors
+    # Assessment factors
     location_risk = models.IntegerField(default=50,
                                         help_text="Location-based risk score")
     inventory_value = models.DecimalField(max_digits=12, decimal_places=2,
@@ -234,9 +234,12 @@ class InsurancePremium(models.Model):
                                       default='pending')
 
     # Payment details
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2,
-                                          null=True, blank=True)
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2,
+    paid_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
     payment_method = models.CharField(max_length=50, blank=True)
     payment_reference = models.CharField(max_length=100, blank=True)
 

@@ -2,8 +2,9 @@
 KYC (Know Your Customer) serializers for API
 """
 from rest_framework import serializers
-from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
-from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
+from ..models_kyc import (
+    KYCDocument, KYCVerification, BankAccount
+)
 
 
 class KYCDocumentSerializer(serializers.ModelSerializer):

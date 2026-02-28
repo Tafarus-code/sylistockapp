@@ -99,7 +99,7 @@ class KYCVerification(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                 blank=True, related_name='kyc_reviews')
-        previous_verification = models.ForeignKey(
+    previous_verification = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True
     )
 
@@ -228,7 +228,8 @@ class ComplianceCheck(models.Model):
     checked_at = models.DateTimeField(auto_now_add=True)
     checked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                   blank=True)
-                                      class Meta:
+
+    class Meta:
         verbose_name = _("Compliance Check")
         verbose_name_plural = _("Compliance Checks")
         ordering = ['-checked_at']
