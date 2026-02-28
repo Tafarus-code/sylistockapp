@@ -4,7 +4,7 @@ KYC (Know Your Customer) Service for bank compliance
 from django.core.files.base import ContentFile
 from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
                            ComplianceCheck)
-                           from ..models import MerchantProfile
+                           ComplianceCheck)
 
 
 class KYCService:

@@ -99,7 +99,7 @@ class KYCVerification(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
                                 blank=True, related_name='kyc_reviews')
-                                review_notes = models.TextField(blank=True)
+        previous_verification = models.ForeignKey(
     previous_verification = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True
     )

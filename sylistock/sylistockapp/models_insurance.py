@@ -31,7 +31,7 @@ class InsurancePolicy(models.Model):
     policy_number = models.CharField(max_length=50, unique=True)
     policy_type = models.CharField(max_length=20, choices=POLICY_TYPES,
                                   default='basic')
-                                    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
                               default='pending')
 
     # Coverage details
@@ -157,7 +157,7 @@ class InsuranceRiskAssessment(models.Model):
                           editable=False)
     merchant = models.ForeignKey('MerchantProfile', on_delete=models.CASCADE,
                                related_name='risk_assessments')
-                                 risk_level = models.CharField(max_length=20, choices=RISK_LEVELS,
+    risk_level = models.CharField(max_length=20, choices=RISK_LEVELS,
                                   default='medium')
     risk_score = models.IntegerField(default=50,
                                     help_text="Risk score (0-100)")
