@@ -23,8 +23,7 @@ def initiate_kyc(request):
         kyc_service = KYCService()
         result = kyc_service.initiate_kyc_process(merchant_id,
                                                      verification_level)
-
-        return Response(result)
+                                                             return Response(result)
 
     except Exception as e:
         return Response({
@@ -51,8 +50,7 @@ def upload_kyc_document(request):
         result = kyc_service.upload_document(kyc_id, document_type,
                                                  file_data.read(),
                                                  file_data.name)
-
-        return Response(result)
+                                                         return Response(result)
 
     except Exception as e:
         return Response({
@@ -75,13 +73,12 @@ def add_bank_account(request):
                 'error': 'Missing required fields',
                 'required': ['kyc_id', 'account_number', 'bank_name',
                            'account_type']
-            }, status=status.HTTP_400_BAD_REQUEST)
+                           }, status=status.HTTP_400_BAD_REQUEST)
 
         kyc_service = KYCService()
         result = kyc_service.verify_bank_account(kyc_id, account_number,
                                                   bank_name, account_type)
-
-        return Response(result)
+                                                          return Response(result)
 
     except Exception as e:
         return Response({
@@ -238,8 +235,7 @@ def renew_kyc_verification(request):
         kyc_service = KYCService()
         result = kyc_service.renew_kyc_verification(kyc_id,
                                                        verification_level)
-
-        return Response(result)
+                                                               return Response(result)
 
     except Exception as e:
         return Response({

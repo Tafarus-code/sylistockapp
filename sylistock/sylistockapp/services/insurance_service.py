@@ -1,7 +1,7 @@
 """
 Micro-Insurance Service for inventory protection
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from django.utils import timezone
 from django.db import transaction
 from ..models_insurance import (
@@ -27,8 +27,6 @@ class InsuranceService:
                           deductible_amount=0):
         """Calculate insurance premium based on risk assessment"""
         try:
-            merchant = MerchantProfile.objects.get(id=merchant_id)
-
             # Get risk assessment
             risk_assessment = self._get_latest_risk_assessment(merchant_id)
             risk_level = (risk_assessment.risk_level if risk_assessment
@@ -222,7 +220,7 @@ class InsuranceService:
                     'success': True,
                     'claim_status': claim.status,
                     'approved_amount': (float(claim.approved_amount)
-                                         if claim.approved_amount else 0),
+                                        if claim.approved_amount else 0),
                 }
 
         except InsuranceClaim.DoesNotExist:
@@ -304,7 +302,7 @@ class InsuranceService:
                         'status': claim.status,
                         'estimated_loss': float(claim.estimated_loss),
                         'approved_amount': (float(claim.approved_amount)
-                                         if claim.approved_amount else 0),
+                                            if claim.approved_amount else 0),
                         'submitted_at': claim.submitted_at,
                         'incident_date': claim.incident_date,
                     }
@@ -333,7 +331,7 @@ class InsuranceService:
                         'due_date': premium.due_date,
                         'payment_status': premium.payment_status,
                         'paid_amount': (float(premium.paid_amount)
-                                         if premium.paid_amount else 0),
+                                        if premium.paid_amount else 0),
                         'paid_date': premium.paid_date,
                     }
                     for premium in premiums
@@ -449,7 +447,7 @@ class InsuranceService:
         # Create monthly premiums for 1 year
         for month in range(12):
             due_date = (policy.start_date.replace(day=due_day) +
-                     timedelta(days=30 * month))
+                        timedelta(days=30 * month))
             premium_number = f"{policy.policy_number}-PREM-{month + 1:02d}"
 
             InsurancePremium.objects.create(

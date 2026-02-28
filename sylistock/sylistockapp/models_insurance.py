@@ -31,7 +31,7 @@ class InsurancePolicy(models.Model):
     policy_number = models.CharField(max_length=50, unique=True)
     policy_type = models.CharField(max_length=20, choices=POLICY_TYPES,
                                   default='basic')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
+                                    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
                               default='pending')
 
     # Coverage details
@@ -157,12 +157,11 @@ class InsuranceRiskAssessment(models.Model):
                           editable=False)
     merchant = models.ForeignKey('MerchantProfile', on_delete=models.CASCADE,
                                related_name='risk_assessments')
-    risk_level = models.CharField(max_length=20, choices=RISK_LEVELS,
+                                 risk_level = models.CharField(max_length=20, choices=RISK_LEVELS,
                                   default='medium')
     risk_score = models.IntegerField(default=50,
                                     help_text="Risk score (0-100)")
-
-    # Assessment factors
+                                        # Assessment factors
     location_risk = models.IntegerField(default=50,
                                         help_text="Location-based risk score")
     inventory_value = models.DecimalField(max_digits=12, decimal_places=2,
@@ -203,7 +202,7 @@ class InsuranceCoverage(models.Model):
     is_included = models.BooleanField(default=False)
     coverage_limit = models.DecimalField(max_digits=12, decimal_places=2,
                                           null=True, blank=True)
-    deductible_percentage = models.DecimalField(max_digits=5, decimal_places=2,
+                                          deductible_percentage = models.DecimalField(max_digits=5, decimal_places=2,
                                                 default=0)
 
     class Meta:
@@ -237,7 +236,7 @@ class InsurancePremium(models.Model):
     # Payment details
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2,
                                           null=True, blank=True)
-    paid_date = models.DateTimeField(null=True, blank=True)
+                                          paid_date = models.DateTimeField(null=True, blank=True)
     payment_method = models.CharField(max_length=50, blank=True)
     payment_reference = models.CharField(max_length=100, blank=True)
 

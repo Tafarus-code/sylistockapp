@@ -109,7 +109,7 @@ def submit_claim(request):
                 'error': 'Missing required fields',
                 'required': ['policy_id', 'claim_type', 'description',
                            'estimated_loss']
-            }, status=status.HTTP_400_BAD_REQUEST)
+                           }, status=status.HTTP_400_BAD_REQUEST)
 
         insurance_service = InsuranceService()
         result = insurance_service.submit_claim(
@@ -133,8 +133,7 @@ def process_claim(request):
         claim_id = request.data.get('claim_id')
         action = request.data.get('action')  # 'approve', 'reject',
                                            # 'request_info'
-        notes = request.data.get('notes', '')
-
+    # notes = request.data.get('notes', '')
         if not all([claim_id, action]):
             return Response({
                 'error': 'Missing required fields',

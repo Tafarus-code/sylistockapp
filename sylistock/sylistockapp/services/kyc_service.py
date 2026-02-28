@@ -4,7 +4,7 @@ KYC (Know Your Customer) Service for bank compliance
 from django.core.files.base import ContentFile
 from ..models_kyc import (KYCDocument, KYCVerification, BankAccount,
                            ComplianceCheck)
-from ..models import MerchantProfile
+                           from ..models import MerchantProfile
 
 
 class KYCService:
@@ -127,7 +127,7 @@ class KYCService:
 
     def verify_bank_account(self, kyc_id, account_number, bank_name,
                          account_type):
-        """Verify bank account details"""
+                           """Verify bank account details"""
         try:
             kyc_verification = KYCVerification.objects.get(id=kyc_id)
 
@@ -181,7 +181,7 @@ class KYCService:
         bank_account.issues = issues
         bank_account.status = ('verified' if verification_score >= 70
                            else 'rejected')
-        bank_account.save()
+                           bank_account.save()
 
         return {
             'score': verification_score,
@@ -395,7 +395,7 @@ class KYCService:
                 merchant=kyc_verification.merchant,
                 verification_level=(verification_level or
                                kyc_verification.verification_level),
-                status='pending',
+                               status='pending',
                 overall_score=0,
                 previous_verification=kyc_verification,
             )

@@ -165,7 +165,7 @@ class CreateInsurancePolicySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'deductible_amount': ("Deductible cannot be greater than "
                                     "or equal to coverage amount")
-            })
+                                    })
 
         return data
 
@@ -190,7 +190,7 @@ class CreateInsuranceClaimSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'estimated_loss': ("Estimated loss cannot exceed policy "
                               "coverage amount")
-                })
+                              })
 
         return data
 
@@ -215,7 +215,7 @@ class UpdateInsuranceClaimStatusSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 'approved_amount': ("Approved amount is required when "
                               "approving a claim")
-            })
+                              })
 
         if action == 'approve' and approved_amount <= 0:
             raise serializers.ValidationError({
