@@ -3,11 +3,18 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../theme/app_theme.dart';
 
+part 'simple_category_screen.g.dart';
+
 // Simple category model for testing
+@HiveType(typeId: 2)
 class SimpleCategory {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String name;
+  @HiveField(2)
   final String? description;
+  @HiveField(3)
   final DateTime createdAt;
 
   SimpleCategory({
