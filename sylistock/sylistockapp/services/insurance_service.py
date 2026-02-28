@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db import transaction
 from ..models_insurance import (
     InsurancePolicy, InsuranceClaim, InsuranceRiskAssessment,
-    InsuranceCoverage, InsurancePremium
+    InsurancePremium
 )
 from ..models import MerchantProfile
 
@@ -75,15 +75,15 @@ class InsuranceService:
             # Create or update risk assessment
             risk_assessment, created = (
                 InsuranceRiskAssessment.objects.get_or_create(
-                merchant=merchant,
-                defaults={
-                    'risk_level': 'medium',
-                    'risk_score': 50,
-                    'location_risk': 50,
-                    'inventory_value': 0,
-                    'security_measures': {},
-                    'previous_claims': 0,
-                }
+                    merchant=merchant,
+                    defaults={
+                        'risk_level': 'medium',
+                        'risk_score': 50,
+                        'location_risk': 50,
+                        'inventory_value': 0,
+                        'security_measures': {},
+                        'previous_claims': 0,
+                    }
                 )
             )
 
@@ -274,7 +274,7 @@ class InsuranceService:
                         'policy_type': policy.policy_type,
                         'status': policy.status,
                         'total_coverage_amount': float(
-                        policy.total_coverage_amount),
+                            policy.total_coverage_amount),
                         'premium_amount': float(policy.premium_amount),
                         'is_active': policy.is_active(),
                         'days_until_expiry': policy.days_until_expiry(),
@@ -333,7 +333,7 @@ class InsuranceService:
                         'due_date': premium.due_date,
                         'payment_status': premium.payment_status,
                         'paid_amount': (float(premium.paid_amount)
-                                     if premium.paid_amount else 0),
+                                         if premium.paid_amount else 0),
                         'paid_date': premium.paid_date,
                     }
                     for premium in premiums
@@ -423,7 +423,8 @@ class InsuranceService:
             random_digits = ''.join(random.choices(string.digits, k=8))
             policy_number = f"{prefix}{random_digits}"
 
-            if not InsurancePolicy.objects.filter(policy_number=policy_number).exists():
+            if not InsurancePolicy.objects.filter(
+                    policy_number=policy_number).exists():
                 return policy_number
 
     def _generate_claim_number(self):
@@ -436,7 +437,8 @@ class InsuranceService:
             random_digits = ''.join(random.choices(string.digits, k=8))
             claim_number = f"{prefix}{random_digits}"
 
-            if not InsuranceClaim.objects.filter(claim_number=claim_number).exists():
+            if not InsuranceClaim.objects.filter(
+                    claim_number=claim_number).exists():
                 return claim_number
 
     def _create_premium_schedule(self, policy):
@@ -446,7 +448,8 @@ class InsuranceService:
 
         # Create monthly premiums for 1 year
         for month in range(12):
-            due_date = policy.start_date.replace(day=due_day) + timedelta(days=30 * month)
+            due_date = (policy.start_date.replace(day=due_day) +
+                     timedelta(days=30 * month))
             premium_number = f"{policy.policy_number}-PREM-{month + 1:02d}"
 
             InsurancePremium.objects.create(
