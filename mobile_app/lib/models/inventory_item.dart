@@ -32,25 +32,45 @@ class InventoryItem {
   // Getter for compatibility
   String get productName => name;
 
+  /// Parse JSON from Django backend.
+  /// Django views return flat JSON:
+  ///   { id, barcode, name, quantity, price, last_updated }
+  /// Or nested from the old CBV:
+  ///   { id, product: { barcode, name }, quantity, cost_price, ... }
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
-    // Handle nested product structure from API
+    // Handle nested product structure if present
     final product = json['product'] as Map<String, dynamic>?;
 
     return InventoryItem(
       id: json['id'] as int,
-      barcode: product?['barcode'] as String? ?? json['barcode'] as String,
-      name: product?['name'] as String? ?? json['name'] as String,
-      quantity: json['quantity'] as int,
+      barcode: product?['barcode'] as String? ??
+          json['barcode'] as String? ??
+          '',
+      name: product?['name'] as String? ??
+          json['name'] as String? ??
+          '',
+      quantity: json['quantity'] as int? ?? 0,
       description: json['description'] as String?,
-      price: json['cost_price'] != null
-          ? (json['cost_price'] as num).toDouble()
-          : json['price'] != null
-              ? (json['price'] as num).toDouble()
-              : null,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : DateTime.now(),
+      price: _parseDouble(json['price'] ?? json['sale_price']),
+      createdAt: _parseDate(
+          json['created_at'] ?? json['last_updated']),
     );
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() {
@@ -65,4 +85,3 @@ class InventoryItem {
     };
   }
 }
-

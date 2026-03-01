@@ -1,134 +1,229 @@
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 import '../models/inventory_item.dart';
+import 'auth_service.dart';
 
 class ApiService {
   late final Dio _dio;
-  static const String _baseUrlKey = 'api_base_url';
+  bool _initialized = false;
 
   ApiService() {
-    _initializeDio();
-  }
-
-  Future<void> _initializeDio() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Auto-detect Railway deployment URL
-    String defaultUrl = 'http://localhost:8000';
-    try {
-      // Check if we're running on Railway (web deployment)
-      final currentUrl = Uri.base.toString();
-      if (currentUrl.contains('railway.app')) {
-        // Extract the Railway URL and use it for API calls
-        final uri = Uri.parse(currentUrl);
-        defaultUrl = '${uri.scheme}://${uri.host}';
-      }
-    } catch (e) {
-      print('Could not detect deployment URL: $e');
-    }
-    
-    final baseUrl = prefs.getString(_baseUrlKey) ?? '$defaultUrl/inventory';
-
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      baseUrl: ApiConfig.baseUrl,
+      connectTimeout: ApiConfig.connectTimeout,
+      receiveTimeout: ApiConfig.receiveTimeout,
+      headers: Map<String, String>.from(ApiConfig.defaultHeaders),
     ));
 
+    // Add auth interceptor — injects token on every request
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          print('API Request: ${options.method} ${options.path}');
+        onRequest: (options, handler) async {
+          final token = await AuthService.getToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Token $token';
+          }
+          print('API → ${options.method} ${options.uri}');
           handler.next(options);
         },
         onError: (error, handler) {
-          print('API Error: ${error.message}');
+          print('API Error: ${error.response?.statusCode} '
+              '${error.message}');
           handler.next(error);
         },
       ),
     );
   }
 
-  Future<void> updateBaseUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_baseUrlKey, url);
-    await _initializeDio();
-  }
+  // ─── Inventory Items ───
 
-  Future<List<InventoryItem>> fetchInventory() async {
+  /// Fetch all stock items for the current merchant
+  Future<List<InventoryItem>> fetchInventory({
+    int page = 1,
+    int pageSize = 50,
+    String search = '',
+  }) async {
     try {
-      final response = await _dio.get('/inventory/');
-      final List<dynamic> data = response.data as List;
-      return data.map((json) => InventoryItem.fromJson(json)).toList();
+      final response = await _dio.get(
+        ApiConfig.items,
+        queryParameters: {
+          'page': page,
+          'page_size': pageSize,
+          if (search.isNotEmpty) 'search': search,
+        },
+      );
+      // Django returns { items: [...], page, total }
+      final List<dynamic> data = response.data['items'] ?? [];
+      return data
+          .map((json) => InventoryItem.fromJson(json))
+          .toList();
     } catch (e) {
       throw Exception('Failed to fetch inventory: $e');
     }
   }
 
-  Future<void> sendBarcode(String barcode) async {
-    try {
-      await _dio.post('/inventory/process-scan/', data: {
-        'barcode': barcode,
-        'action': 'IN',
-        'source': 'mobile_app',
-        'device_id': 'mobile_device',
-      });
-    } catch (e) {
-      throw Exception('Failed to send barcode: $e');
-    }
-  }
-
-  Future<InventoryItem> addInventoryItem({
+  /// Add a new stock item
+  Future<InventoryItem> addItem({
     required String barcode,
     required String name,
     required int quantity,
-    double? price,
+    double price = 0,
+    double costPrice = 0,
   }) async {
     try {
-      final response = await _dio.post('/inventory/', data: {
-        'product': {
+      final response = await _dio.post(
+        ApiConfig.addItem,
+        data: {
           'barcode': barcode,
           'name': name,
+          'quantity': quantity,
+          'price': price,
+          'cost_price': costPrice,
         },
-        'quantity': quantity,
-        'cost_price': price,
-        'sale_price': price,
-      });
+      );
       return InventoryItem.fromJson(response.data);
     } catch (e) {
       throw Exception('Failed to add item: $e');
     }
   }
 
-  Future<InventoryItem> updateInventoryItem({
+  /// Update an existing stock item
+  Future<Map<String, dynamic>> updateItem({
     required int id,
-    String? barcode,
-    String? name,
     int? quantity,
+    double? price,
   }) async {
     try {
-      final response = await _dio.patch(
-        '/inventory/$id/',
+      final response = await _dio.put(
+        ApiConfig.updateItem(id),
         data: {
-          if (barcode != null) 'barcode': barcode,
-          if (name != null) 'name': name,
           if (quantity != null) 'quantity': quantity,
+          if (price != null) 'price': price,
         },
       );
-      return InventoryItem.fromJson(response.data);
+      return response.data;
     } catch (e) {
-      throw Exception('Failed to update inventory item: $e');
+      throw Exception('Failed to update item: $e');
     }
   }
 
-  Future<void> deleteInventoryItem(int id) async {
+  /// Remove quantity from a stock item
+  Future<Map<String, dynamic>> removeStock({
+    required int id,
+    required int quantity,
+  }) async {
     try {
-      await _dio.delete('/inventory/$id/');
+      final response = await _dio.post(
+        ApiConfig.removeItem(id),
+        data: {'quantity': quantity},
+      );
+      return response.data;
     } catch (e) {
-      throw Exception('Failed to delete inventory item: $e');
+      throw Exception('Failed to remove stock: $e');
+    }
+  }
+
+  /// Get single item details
+  Future<Map<String, dynamic>> getItemDetails(int id) async {
+    try {
+      final response = await _dio.get(ApiConfig.itemDetails(id));
+      return response.data;
+    } catch (e) {
+      throw Exception('Failed to get item details: $e');
+    }
+  }
+
+  /// Search inventory items
+  Future<List<InventoryItem>> searchItems(String query) async {
+    try {
+      final response = await _dio.get(
+        ApiConfig.searchItems,
+        queryParameters: {'q': query},
+      );
+      final List<dynamic> results = response.data['results'] ?? [];
+      return results
+          .map((json) => InventoryItem.fromJson(json))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to search items: $e');
+    }
+  }
+
+  // ─── Barcode Scanning ───
+
+  /// Process a barcode scan (IN or OUT)
+  Future<Map<String, dynamic>> processScan({
+    required String barcode,
+    required String action,
+    String source = 'PHONE',
+    String deviceId = 'mobile_app',
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiConfig.scanProcess,
+        data: {
+          'barcode': barcode,
+          'action': action,
+          'source': source,
+          'device_id': deviceId,
+        },
+      );
+      return response.data;
+    } catch (e) {
+      throw Exception('Failed to process scan: $e');
+    }
+  }
+
+  // ─── Reports ───
+
+  Future<Map<String, dynamic>> getSalesReport({int days = 7}) async {
+    try {
+      final response = await _dio.get(
+        ApiConfig.salesReport,
+        queryParameters: {'days': days},
+      );
+      return response.data;
+    } catch (e) {
+      throw Exception('Failed to get sales report: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getPerformance() async {
+    try {
+      final response = await _dio.get(ApiConfig.merchantPerformance);
+      return response.data;
+    } catch (e) {
+      throw Exception('Failed to get performance: $e');
+    }
+  }
+
+  // ─── Alerts ───
+
+  Future<Map<String, dynamic>> getLowStockAlerts({
+    int? threshold,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiConfig.lowStockAlerts,
+        queryParameters: {
+          if (threshold != null) 'threshold': threshold,
+        },
+      );
+      return response.data;
+    } catch (e) {
+      throw Exception('Failed to get alerts: $e');
+    }
+  }
+
+  // ─── Inventory History ───
+
+  Future<List<Map<String, dynamic>>> getHistory() async {
+    try {
+      final response = await _dio.get(ApiConfig.inventoryHistory);
+      final List<dynamic> data = response.data['history'] ?? [];
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      throw Exception('Failed to get history: $e');
     }
   }
 }

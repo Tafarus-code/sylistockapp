@@ -18,49 +18,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-import sys
 import os
 
-# Calculate project root for Railway deployment
-# Current file: sylistock/sylistock/urls.py
-# Project root: sylistockapp/ (4 levels up)
-current_file = os.path.abspath(__file__)
-parent_dir = os.path.dirname(current_file)
-grandparent_dir = os.path.dirname(parent_dir)
-greatgrandparent_dir = os.path.dirname(grandparent_dir)
-project_root = os.path.dirname(greatgrandparent_dir)
-
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-# Try different import paths for Railway deployment
-try:
-    # Try project root first (Railway: sylistockapp/views_home.py)
-    from views_home import api_home, api_info
-except ImportError:
-    try:
-        # Try sylistockapp directory (local development)
-        from sylistockapp.views_home import api_home, api_info
-    except ImportError:
-        # Try relative import as last resort
-        from .views_home import api_home, api_info
-
-# Import Flutter app view
-try:
-    from views_flutter import flutter_app
-except ImportError:
-    try:
-        from sylistockapp.views_flutter import flutter_app
-    except ImportError:
-        from .views_flutter import flutter_app
-
-# Import auth views
-try:
-    from sylistockapp.views_auth import (
-        register, login, logout, profile
-    )
-except ImportError:
-    from .views_auth import register, login, logout, profile
+# Import views
+from sylistockapp.views_home import api_home, api_info
+from sylistockapp.views_flutter import flutter_app
+from sylistockapp.views_auth import (
+    register, login, logout, profile
+)
 
 urlpatterns = [
     path('', api_home, name='home'),

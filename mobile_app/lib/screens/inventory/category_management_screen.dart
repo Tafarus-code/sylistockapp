@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:uuid/uuid.dart';
 import '../../theme/app_theme.dart';
 import '../../models/enhanced_inventory_item.dart';
 import '../../services/enhanced_inventory_service.dart';
@@ -27,26 +25,20 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
     setState(() => _isLoading = true);
     
     try {
-      final categoryBox = await Hive.openBox<InventoryCategory>('categories');
-      final keys = categoryBox.keys;
-      _categories.clear();
-      
-      for (final key in keys) {
-        final category = categoryBox.get(key);
-        if (category != null) {
-          _categories.add(category);
-        }
-      }
-      
+      final inventoryService = ref.read(enhancedInventoryServiceProvider);
+      final categories = await inventoryService.getAllCategories();
+
       setState(() {
-        _categories = _categories;
+        _categories = categories;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading categories: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading categories: $e')),
+        );
+      }
     }
   }
 

@@ -173,8 +173,12 @@ def get_policy_details(request, policy_id):
 def get_merchant_policies(request, merchant_id):
     """Get merchant's insurance policies"""
     try:
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 20))
         insurance_service = InsuranceService()
-        result = insurance_service.get_merchant_policies(merchant_id)
+        result = insurance_service.get_merchant_policies(
+            merchant_id, page, page_size
+        )
 
         return Response(result)
 
@@ -189,8 +193,12 @@ def get_merchant_policies(request, merchant_id):
 def get_policy_claims(request, policy_id):
     """Get policy claims"""
     try:
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 20))
         insurance_service = InsuranceService()
-        result = insurance_service.get_policy_claims(policy_id)
+        result = insurance_service.get_policy_claims(
+            policy_id, page, page_size
+        )
 
         return Response(result)
 
@@ -205,8 +213,12 @@ def get_policy_claims(request, policy_id):
 def get_policy_premiums(request, policy_id):
     """Get policy premiums"""
     try:
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 20))
         insurance_service = InsuranceService()
-        result = insurance_service.get_policy_premiums(policy_id)
+        result = insurance_service.get_policy_premiums(
+            policy_id, page, page_size
+        )
 
         return Response(result)
 

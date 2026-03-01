@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MerchantProfile, Product, StockItem, InventoryLog
+from .models import MerchantProfile, Product, StockItem, InventoryLog, Category
 from .models_kyc import (
     KYCDocument, KYCVerification, BankAccount, ComplianceCheck
 )
@@ -138,3 +138,9 @@ class InsurancePremiumAdmin(admin.ModelAdmin):
     list_filter = ['payment_status']
     search_fields = ['premium_number']
 
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'merchant', 'icon', 'is_active', 'created_at']
+    list_filter = ['is_active', 'merchant']
+    search_fields = ['name', 'description']

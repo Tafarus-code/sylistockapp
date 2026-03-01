@@ -2,6 +2,8 @@
 Authentication views for user registration and login
 """
 from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -34,6 +36,15 @@ def register(request):
             'error': 'Username already exists',
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    # Validate password strength
+    try:
+        validate_password(password)
+    except DjangoValidationError as e:
+        return Response({
+            'error': 'Password too weak',
+            'details': list(e.messages),
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     user = User.objects.create_user(
         username=username,
         password=password,
@@ -42,7 +53,7 @@ def register(request):
 
     # Create merchant profile
     from .models import MerchantProfile
-    MerchantProfile.objects.create(
+    merchant_profile = MerchantProfile.objects.create(
         user=user,
         business_name=business_name,
         location=location,
@@ -58,6 +69,7 @@ def register(request):
             'username': user.username,
             'email': user.email,
             'business_name': business_name,
+            'merchant_id': merchant_profile.pk,
         },
     }, status=status.HTTP_201_CREATED)
 
@@ -84,8 +96,10 @@ def login(request):
     token, _ = Token.objects.get_or_create(user=user)
 
     merchant_name = ''
+    merchant_id = None
     if hasattr(user, 'merchantprofile'):
         merchant_name = user.merchantprofile.business_name
+        merchant_id = user.merchantprofile.pk
 
     return Response({
         'success': True,
@@ -95,6 +109,7 @@ def login(request):
             'username': user.username,
             'email': user.email,
             'business_name': merchant_name,
+            'merchant_id': merchant_id,
         },
     })
 
@@ -124,6 +139,7 @@ def profile(request):
     if hasattr(user, 'merchantprofile'):
         mp = user.merchantprofile
         merchant_data = {
+            'id': mp.pk,
             'business_name': mp.business_name,
             'location': mp.location,
             'bankability_score': float(mp.bankability_score),
@@ -137,4 +153,3 @@ def profile(request):
         'email': user.email,
         'merchant': merchant_data,
     })
-

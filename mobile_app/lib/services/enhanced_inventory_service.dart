@@ -1,330 +1,462 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/enhanced_inventory_item.dart';
 import '../config/api_config.dart';
+import 'auth_service.dart';
 
-final enhancedInventoryServiceProvider = Provider((ref) => EnhancedInventoryService());
+final enhancedInventoryServiceProvider =
+    Provider((ref) => EnhancedInventoryService.instance);
 
 class EnhancedInventoryService {
-  late final Box<EnhancedInventoryItem> _itemBox;
-  late final Box<InventoryCategory> _categoryBox;
+  // Singleton so main.dart init and provider share the same instance
+  static final EnhancedInventoryService instance =
+      EnhancedInventoryService._();
+  factory EnhancedInventoryService() => instance;
+
+  Box<EnhancedInventoryItem>? _itemBox;
+  Box<InventoryCategory>? _categoryBox;
+  bool _initialized = false;
   final Dio _dio = Dio();
-  
-  EnhancedInventoryService() {
+
+  EnhancedInventoryService._() {
     _dio.options.baseUrl = ApiConfig.baseUrl;
+    _dio.options.connectTimeout = ApiConfig.connectTimeout;
+    _dio.options.receiveTimeout = ApiConfig.receiveTimeout;
     _dio.options.headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
+
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await AuthService.getToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Token $token';
+          }
+          handler.next(options);
+        },
+        onError: (error, handler) {
+          print('EnhancedInventory API Error: '
+              '${error.response?.statusCode} ${error.message}');
+          handler.next(error);
+        },
+      ),
+    );
   }
 
   Future<void> initialize() async {
-    _itemBox = await Hive.openBox<EnhancedInventoryItem>('enhanced_inventory_items');
-    _categoryBox = await Hive.openBox<InventoryCategory>('inventory_categories');
+    if (_initialized) return;
+
+    // Force-clear all caches — format changed (removed HiveObject),
+    // old data on disk causes "Cannot write" / adapter errors.
+    // Items and categories reload from Django backend.
+    for (final name in [
+      'enhanced_inventory_items',
+      'inventory_categories',
+    ]) {
+      try { await Hive.deleteBoxFromDisk(name); } catch (_) {}
+    }
+
+    _itemBox = await _openBoxSafe<EnhancedInventoryItem>(
+        'enhanced_inventory_items');
+    _categoryBox =
+        await _openBoxSafe<InventoryCategory>('inventory_categories');
+    _initialized = true;
   }
 
-  // Item Management
-  Future<List<EnhancedInventoryItem>> getAllItems() async {
+  /// Open a Hive box safely — if corrupted, delete and recreate it
+  Future<Box<T>> _openBoxSafe<T>(String name) async {
     try {
-      // Try to get from backend first
-      final response = await _dio.get('/api/inventory/items/');
+      final box = await Hive.openBox<T>(name);
+      // Test read to catch deserialization errors early
+      box.values.length;
+      return box;
+    } catch (e) {
+      print('Hive box "$name" corrupted, resetting: $e');
+      try {
+        await Hive.deleteBoxFromDisk(name);
+      } catch (_) {}
+      return await Hive.openBox<T>(name);
+    }
+  }
+
+  /// Ensure Hive boxes are open before every operation
+  Future<void> _ensureInit() async {
+    if (!_initialized) await initialize();
+  }
+
+  // ─── Item Management ───
+
+  Future<List<EnhancedInventoryItem>> getAllItems() async {
+    await _ensureInit();
+    try {
+      final response = await _dio.get(ApiConfig.items);
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        final items = data.map((json) => EnhancedInventoryItem.fromJson(json)).toList();
-        
-        // Update local cache
-        await _syncLocalItems(items);
+        final List<dynamic> data = response.data['items'] ?? [];
+        final items = data
+            .map((json) =>
+                _mapDjangoItemToEnhanced(json as Map<String, dynamic>))
+            .toList();
+        try { await _syncLocalItems(items); } catch (_) {}
         return items;
       }
     } catch (e) {
       print('Error fetching items from backend: $e');
     }
-    
-    // Fallback to local storage
-    return _itemBox.values.toList();
+    try { return _itemBox!.values.toList(); } catch (_) { return []; }
   }
 
   Future<EnhancedInventoryItem?> getItemById(String id) async {
-    try {
-      final response = await _dio.get('/api/inventory/items/$id/');
-      if (response.statusCode == 200) {
-        final item = EnhancedInventoryItem.fromJson(response.data);
-        await _itemBox.put(id, item);
-        return item;
+    await _ensureInit();
+    final intId = int.tryParse(id);
+    if (intId != null) {
+      try {
+        final response =
+            await _dio.get(ApiConfig.itemDetails(intId));
+        if (response.statusCode == 200) {
+          final item = _mapDjangoItemToEnhanced(response.data);
+          try { await _itemBox!.put(id, item); } catch (_) {}
+          return item;
+        }
+      } catch (e) {
+        print('Error fetching item from backend: $e');
       }
-    } catch (e) {
-      print('Error fetching item from backend: $e');
     }
-    
-    return _itemBox.get(id);
+    try { return _itemBox!.get(id); } catch (_) { return null; }
   }
 
-  Future<EnhancedInventoryItem?> getItemByBarcode(String barcode) async {
+  Future<EnhancedInventoryItem?> getItemByBarcode(
+      String barcode) async {
+    await _ensureInit();
     try {
-      final response = await _dio.get('/api/inventory/items/by-barcode/', queryParameters: {'barcode': barcode});
+      final response = await _dio.get(
+        ApiConfig.searchItems,
+        queryParameters: {'q': barcode},
+      );
       if (response.statusCode == 200) {
-        final item = EnhancedInventoryItem.fromJson(response.data);
-        await _itemBox.put(item.id, item);
-        return item;
+        final results = response.data['results'] as List? ?? [];
+        if (results.isNotEmpty) {
+          final item = _mapDjangoItemToEnhanced(
+              results.first as Map<String, dynamic>);
+          try { await _itemBox!.put(item.id, item); } catch (_) {}
+          return item;
+        }
       }
     } catch (e) {
-      print('Error fetching item by barcode from backend: $e');
+      print('Error searching item by barcode: $e');
     }
-    
-    // Search local storage
-    return _itemBox.values.firstWhere(
-      (item) => item.barcode == barcode || item.qrCode == barcode,
-      orElse: () => throw Exception('Item not found'),
-    );
+    try {
+      return _itemBox!.values.firstWhere(
+        (item) =>
+            item.barcode == barcode || item.qrCode == barcode,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
-  Future<EnhancedInventoryItem> createItem(EnhancedInventoryItem item) async {
+  Future<EnhancedInventoryItem> createItem(
+      EnhancedInventoryItem item) async {
+    await _ensureInit();
     try {
-      final response = await _dio.post('/api/inventory/items/', data: item.toJson());
-      if (response.statusCode == 201) {
-        final createdItem = EnhancedInventoryItem.fromJson(response.data);
-        await _itemBox.put(createdItem.id, createdItem);
+      final response = await _dio.post(
+        ApiConfig.addItem,
+        data: {
+          'barcode': item.barcode ?? '',
+          'name': item.name,
+          'quantity': item.quantity,
+          'price': item.sellingPrice ?? item.unitPrice,
+          'cost_price': item.unitPrice,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final createdItem =
+            _mapDjangoItemToEnhanced(response.data);
+        try { await _itemBox!.put(createdItem.id, createdItem); } catch (_) {}
         return createdItem;
       }
     } catch (e) {
       print('Error creating item on backend: $e');
     }
-    
-    // Fallback to local storage
-    await _itemBox.put(item.id, item);
+    try { await _itemBox!.put(item.id, item); } catch (_) {}
     return item;
   }
 
-  Future<EnhancedInventoryItem> updateItem(EnhancedInventoryItem item) async {
-    try {
-      final response = await _dio.put('/api/inventory/items/${item.id}/', data: item.toJson());
-      if (response.statusCode == 200) {
-        final updatedItem = EnhancedInventoryItem.fromJson(response.data);
-        await _itemBox.put(updatedItem.id, updatedItem);
-        return updatedItem;
+  Future<EnhancedInventoryItem> updateItem(
+      EnhancedInventoryItem item) async {
+    await _ensureInit();
+    final intId = int.tryParse(item.id);
+    if (intId != null) {
+      try {
+        final response = await _dio.put(
+          ApiConfig.updateItem(intId),
+          data: {
+            'quantity': item.quantity,
+            'price': item.sellingPrice ?? item.unitPrice,
+          },
+        );
+        if (response.statusCode == 200) {
+          try { await _itemBox!.put(item.id, item); } catch (_) {}
+          return item;
+        }
+      } catch (e) {
+        print('Error updating item on backend: $e');
       }
-    } catch (e) {
-      print('Error updating item on backend: $e');
     }
-    
-    // Fallback to local storage
-    await _itemBox.put(item.id, item);
+    try { await _itemBox!.put(item.id, item); } catch (_) {}
     return item;
   }
 
   Future<void> deleteItem(String id) async {
-    try {
-      await _dio.delete('/api/inventory/items/$id/');
-    } catch (e) {
-      print('Error deleting item from backend: $e');
-    }
-    
-    // Remove from local storage
-    await _itemBox.delete(id);
+    await _ensureInit();
+    try { await _itemBox!.delete(id); } catch (_) {}
   }
 
-  // Category Management
+  // ─── Category Management (synced with Django backend) ───
+
   Future<List<InventoryCategory>> getAllCategories() async {
+    await _ensureInit();
     try {
-      final response = await _dio.get('/api/inventory/categories/');
+      final response = await _dio.get(ApiConfig.categories);
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        final categories = data.map((json) => InventoryCategory.fromJson(json)).toList();
-        
-        // Update local cache
-        await _syncLocalCategories(categories);
+        final List<dynamic> data =
+            response.data['categories'] ?? [];
+        final categories = data
+            .map((json) => InventoryCategory.fromJson(
+                json as Map<String, dynamic>))
+            .toList();
+        // Cache locally (best effort)
+        try {
+          await _categoryBox!.clear();
+          for (final cat in categories) {
+            await _categoryBox!.put(cat.id, cat);
+          }
+        } catch (_) {}
         return categories;
       }
     } catch (e) {
-      print('Error fetching categories from backend: $e');
+      print('Error fetching categories: $e');
     }
-    
-    return _categoryBox.values.toList();
+    try {
+      return _categoryBox!.values.toList();
+    } catch (_) {
+      return [];
+    }
   }
 
-  Future<InventoryCategory> createCategory(InventoryCategory category) async {
-    try {
-      final response = await _dio.post('/api/inventory/categories/', data: category.toJson());
-      if (response.statusCode == 201) {
-        final createdCategory = InventoryCategory.fromJson(response.data);
-        await _categoryBox.put(createdCategory.id, createdCategory);
-        return createdCategory;
-      }
-    } catch (e) {
-      print('Error creating category on backend: $e');
+  Future<InventoryCategory> createCategory(
+      InventoryCategory category) async {
+    await _ensureInit();
+    final response = await _dio.post(
+      ApiConfig.createCategory,
+      data: category.toJson(),
+    );
+    if (response.statusCode == 201) {
+      final saved = InventoryCategory.fromJson(
+          response.data as Map<String, dynamic>);
+      try {
+        await _categoryBox!.put(saved.id, saved);
+      } catch (_) {}
+      return saved;
     }
-    
-    await _categoryBox.put(category.id, category);
-    return category;
+    throw Exception(response.data?['error'] ?? 'Failed to create category');
   }
 
-  Future<InventoryCategory> updateCategory(InventoryCategory category) async {
-    try {
-      final response = await _dio.put('/api/inventory/categories/${category.id}/', data: category.toJson());
+  Future<InventoryCategory> updateCategory(
+      InventoryCategory category) async {
+    await _ensureInit();
+    final catId = int.tryParse(category.id);
+    if (catId != null) {
+      final response = await _dio.put(
+        ApiConfig.updateCategory(catId),
+        data: category.toJson(),
+      );
       if (response.statusCode == 200) {
-        final updatedCategory = InventoryCategory.fromJson(response.data);
-        await _categoryBox.put(updatedCategory.id, updatedCategory);
-        return updatedCategory;
+        final saved = InventoryCategory.fromJson(
+            response.data as Map<String, dynamic>);
+        try {
+          await _categoryBox!.put(saved.id, saved);
+        } catch (_) {}
+        return saved;
       }
-    } catch (e) {
-      print('Error updating category on backend: $e');
     }
-    
-    await _categoryBox.put(category.id, category);
-    return category;
+    throw Exception('Failed to update category');
   }
 
   Future<void> deleteCategory(String id) async {
-    try {
-      await _dio.delete('/api/inventory/categories/$id/');
-    } catch (e) {
-      print('Error deleting category from backend: $e');
+    await _ensureInit();
+    final catId = int.tryParse(id);
+    if (catId != null) {
+      await _dio.delete(ApiConfig.deleteCategory(catId));
     }
-    
-    await _categoryBox.delete(id);
+    try {
+      await _categoryBox!.delete(id);
+    } catch (_) {}
   }
 
-  // Search and Filter
-  Future<List<EnhancedInventoryItem>> searchItems(String query) async {
+  // ─── Search ───
+
+  Future<List<EnhancedInventoryItem>> searchItems(
+      String query) async {
+    await _ensureInit();
     try {
-      final response = await _dio.get('/api/inventory/items/search/', queryParameters: {'q': query});
+      final response = await _dio.get(
+        ApiConfig.searchItems,
+        queryParameters: {'q': query},
+      );
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        return data.map((json) => EnhancedInventoryItem.fromJson(json)).toList();
+        final List<dynamic> data =
+            response.data['results'] ?? [];
+        return data
+            .map((json) => _mapDjangoItemToEnhanced(
+                json as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
       print('Error searching items on backend: $e');
     }
-    
-    // Local search fallback
-    return _itemBox.values.where((item) {
-      return item.name.toLowerCase().contains(query.toLowerCase()) ||
-          (item.description?.toLowerCase().contains(query.toLowerCase()) ?? false) ||
-          (item.barcode?.contains(query) ?? false) ||
-          (item.supplier?.toLowerCase().contains(query.toLowerCase()) ?? false);
-    }).toList();
-  }
-
-  Future<List<EnhancedInventoryItem>> getItemsByCategory(String categoryId) async {
     try {
-      final response = await _dio.get('/api/inventory/items/by-category/', queryParameters: {'category_id': categoryId});
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        return data.map((json) => EnhancedInventoryItem.fromJson(json)).toList();
-      }
-    } catch (e) {
-      print('Error fetching items by category from backend: $e');
+      return _itemBox!.values.where((item) {
+        final q = query.toLowerCase();
+        return item.name.toLowerCase().contains(q) ||
+            (item.description?.toLowerCase().contains(q) ?? false) ||
+            (item.barcode?.contains(query) ?? false) ||
+            (item.supplier?.toLowerCase().contains(q) ?? false);
+      }).toList();
+    } catch (_) {
+      return [];
     }
-    
-    return _itemBox.values.where((item) => item.categoryId == categoryId).toList();
   }
 
-  // Analytics and Reports
-  Future<Map<String, dynamic>> getInventoryStats() async {
+  Future<List<EnhancedInventoryItem>> getItemsByCategory(
+      String categoryId) async {
+    await _ensureInit();
     try {
-      final response = await _dio.get('/api/inventory/stats/');
+      return _itemBox!.values
+          .where((item) => item.categoryId == categoryId)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ─── Analytics ───
+
+  Future<Map<String, dynamic>> getInventoryStats() async {
+    await _ensureInit();
+    try {
+      final response =
+          await _dio.get(ApiConfig.merchantPerformance);
       if (response.statusCode == 200) {
         return response.data;
       }
     } catch (e) {
       print('Error fetching stats from backend: $e');
     }
-    
-    // Calculate local stats
-    final items = _itemBox.values.toList();
-    final totalItems = items.length;
-    final totalValue = items.fold<double>(0, (sum, item) => sum + item.totalValue);
-    final lowStockItems = items.where((item) => item.isLowStock).length;
-    final expiredItems = items.where((item) => item.isExpired).length;
-    final expiringItems = items.where((item) => item.isExpiringSoon).length;
-    
-    return {
-      'total_items': totalItems,
-      'total_value': totalValue,
-      'low_stock_items': lowStockItems,
-      'expired_items': expiredItems,
-      'expiring_items': expiringItems,
-    };
+    try {
+      final items = _itemBox!.values.toList();
+      return {
+        'total_items': items.length,
+        'total_value': items.fold<double>(
+            0, (sum, item) => sum + item.totalValue),
+        'low_stock_items':
+            items.where((item) => item.isLowStock).length,
+        'expired_items':
+            items.where((item) => item.isExpired).length,
+        'expiring_items':
+            items.where((item) => item.isExpiringSoon).length,
+      };
+    } catch (_) {
+      return {
+        'total_items': 0,
+        'total_value': 0.0,
+        'low_stock_items': 0,
+        'expired_items': 0,
+        'expiring_items': 0,
+      };
+    }
   }
 
-  // Bulk Operations
-  Future<void> bulkImport(List<EnhancedInventoryItem> items) async {
-    try {
-      final response = await _dio.post('/api/inventory/bulk-import/', data: {
-        'items': items.map((item) => item.toJson()).toList(),
-      });
-      if (response.statusCode == 200) {
-        // Sync imported items
-        await _syncLocalItems(response.data['items'].map((json) => EnhancedInventoryItem.fromJson(json)).toList());
-        return;
-      }
-    } catch (e) {
-      print('Error bulk importing items: $e');
-    }
-    
-    // Fallback to local storage
+  // ─── Bulk Operations ───
+
+  Future<void> bulkImport(
+      List<EnhancedInventoryItem> items) async {
     for (final item in items) {
-      await _itemBox.put(item.id, item);
+      await createItem(item);
     }
   }
 
   Future<void> bulkExport() async {
     try {
-      final response = await _dio.get('/api/inventory/bulk-export/');
-      if (response.statusCode == 200) {
-        // Handle file download
-        return;
-      }
+      await _dio.get(ApiConfig.bulkExport);
     } catch (e) {
       print('Error bulk exporting items: $e');
     }
   }
 
-  // Sync methods
+  // ─── Sync ───
+
   Future<void> syncWithBackend() async {
     try {
-      // Sync items
       await getAllItems();
-      
-      // Sync categories
-      await getAllCategories();
     } catch (e) {
       print('Error syncing with backend: $e');
     }
   }
 
-  Future<void> _syncLocalItems(List<EnhancedInventoryItem> items) async {
-    for (final item in items) {
-      await _itemBox.put(item.id, item);
-    }
-  }
-
-  Future<void> _syncLocalCategories(List<InventoryCategory> categories) async {
-    for (final category in categories) {
-      await _categoryBox.put(category.id, category);
-    }
-  }
-
-  // Local storage methods
-  Future<void> clearLocalData() async {
-    await _itemBox.clear();
-    await _categoryBox.clear();
-  }
-
-  Future<void> backupLocalData() async {
-    final items = _itemBox.values.map((item) => item.toJson()).toList();
-    final categories = _categoryBox.values.map((category) => category.toJson()).toList();
-    
-    // Save to file or send to backend
+  Future<void> _syncLocalItems(
+      List<EnhancedInventoryItem> items) async {
     try {
-      await _dio.post('/api/inventory/backup/', data: {
-        'items': items,
-        'categories': categories,
-      });
-    } catch (e) {
-      print('Error backing up data: $e');
+      for (final item in items) {
+        await _itemBox!.put(item.id, item);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> clearLocalData() async {
+    await _ensureInit();
+    try { await _itemBox!.clear(); } catch (_) {}
+    try { await _categoryBox!.clear(); } catch (_) {}
+  }
+
+  // ─── Django JSON → EnhancedInventoryItem mapper ───
+
+  EnhancedInventoryItem _mapDjangoItemToEnhanced(
+      Map<String, dynamic> json) {
+    final id = json['id']?.toString() ?? '';
+    final price = _toDouble(json['price'] ?? json['sale_price']);
+    final costPrice = _toDouble(json['cost_price']);
+
+    return EnhancedInventoryItem(
+      id: id,
+      name: json['name'] as String? ?? '',
+      barcode: json['barcode'] as String?,
+      description: json['description'] as String?,
+      categoryId: json['category_id'] as String? ?? 'uncategorized',
+      quantity: json['quantity'] as int? ?? 0,
+      unitPrice: costPrice ?? price ?? 0.0,
+      sellingPrice: price,
+      location: json['location'] as String?,
+      createdAt: _toDate(json['created_at']),
+      updatedAt: _toDate(json['last_updated'] ?? json['updated_at']),
+    );
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  DateTime _toDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
     }
+    return DateTime.now();
   }
 }

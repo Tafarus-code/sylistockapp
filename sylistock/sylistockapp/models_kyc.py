@@ -114,11 +114,11 @@ class KYCVerification(models.Model):
     def get_required_documents(self):
         """Get required documents based on verification level"""
         requirements = {
-            'basic': ['national_id', 'proof_of_address'],
-            'standard': ['national_id', 'proof_of_address',
+            'basic': ['national_id', 'utility_bill'],
+            'standard': ['national_id', 'utility_bill',
                          'business_registration'],
             'enhanced': [
-                'national_id', 'proof_of_address', 'business_registration',
+                'national_id', 'utility_bill', 'business_registration',
                 'tax_certificate', 'bank_statement'
             ],
         }

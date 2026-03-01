@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import ProcessScanView
 from .views_production import (
     add_stock_item,
     remove_stock_item,
@@ -34,6 +35,8 @@ from .views_kyc import (
     get_kyc_documents,
     get_bank_accounts,
     get_compliance_checks,
+    expire_kyc_verification,
+    renew_kyc_verification,
 )
 from .views_insurance import (
     calculate_premium,
@@ -47,8 +50,17 @@ from .views_insurance import (
     get_policy_premiums,
     get_merchant_risk_assessment,
 )
+from .views_categories import (
+    list_categories,
+    create_category,
+    update_category,
+    delete_category,
+)
 
 urlpatterns = [
+    # Barcode scan processing
+    path('scan/', ProcessScanView.as_view(), name='process-scan'),
+
     # Stock management
     path('items/', get_stock_items, name='stock-items'),
     path('items/add/', add_stock_item, name='add-stock-item'),
@@ -95,6 +107,10 @@ urlpatterns = [
          name='kyc-bank-accounts'),
     path('kyc/compliance/<uuid:kyc_id>/', get_compliance_checks,
          name='kyc-compliance'),
+    path('kyc/expire/', expire_kyc_verification,
+         name='kyc-expire'),
+    path('kyc/renew/', renew_kyc_verification,
+         name='kyc-renew'),
 
     # Insurance
     path('insurance/calculate-premium/', calculate_premium,
@@ -118,4 +134,12 @@ urlpatterns = [
     path('insurance/merchant/<int:merchant_id>/risk/',
          get_merchant_risk_assessment,
          name='insurance-risk-assessment'),
+
+    # Categories
+    path('categories/', list_categories, name='list-categories'),
+    path('categories/create/', create_category, name='create-category'),
+    path('categories/<int:category_id>/update/', update_category,
+         name='update-category'),
+    path('categories/<int:category_id>/delete/', delete_category,
+         name='delete-category'),
 ]

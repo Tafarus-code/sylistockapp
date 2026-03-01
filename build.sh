@@ -13,7 +13,7 @@ pip install -r requirements.txt
 # Collect static assets and run database migrations
 echo "Collecting Django static files..."
 python sylistock/manage.py collectstatic --no-input --clear
-python sylistock/manage.py migrate
+python sylistock/manage.py migrate --fake-initial
 
 # Exit successfully
 exit 0

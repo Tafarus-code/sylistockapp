@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/bankability_engine.dart';
 import '../services/what3words_service.dart';
 import '../services/network_optimization_service.dart';
+import '../services/auth_service.dart';
+import '../services/api_service.dart';
 
 /// Bankability Dashboard for Krediti-GN
 /// Displays credit scores, loan recommendations, and financial insights
@@ -22,6 +24,8 @@ class _BankabilityDashboardScreenState extends ConsumerState<BankabilityDashboar
   String? _locationWords;
   DeliveryCost? _deliveryCost;
   NetworkStats? _networkStats;
+  Map<String, String?>? _userInfo;
+  Map<String, dynamic>? _serverProfile;
 
   @override
   void initState() {
@@ -41,10 +45,20 @@ class _BankabilityDashboardScreenState extends ConsumerState<BankabilityDashboar
     setState(() => _isLoading = true);
     
     try {
-      // Calculate credit score (merchant ID would come from auth)
-      const merchantId = 1; // Placeholder
-      _creditScoreResult = await BankabilityEngine.calculateCreditScore(merchantId);
-      
+      // Get merchant ID from auth (not hardcoded)
+      _userInfo = await AuthService.getUserInfo();
+      final merchantId = int.tryParse(_userInfo?['merchant_id'] ?? '') ?? 0;
+
+      // Fetch live profile from server (bankability score, etc.)
+      try {
+        final authService = AuthService();
+        _serverProfile = await authService.getProfile();
+      } catch (_) {}
+
+      // Calculate local credit score from inventory data
+      _creditScoreResult =
+          await BankabilityEngine.calculateCreditScore(merchantId);
+
       // Get location
       _locationWords = await What3WordsService.instance.getLocationWords();
       
@@ -54,8 +68,9 @@ class _BankabilityDashboardScreenState extends ConsumerState<BankabilityDashboar
       }
       
       // Export bank data package
-      _bankDataPackage = await BankabilityEngine.exportLoanPackage(merchantId);
-      
+      final merchantId2 = int.tryParse(_userInfo?['merchant_id'] ?? '') ?? 0;
+      _bankDataPackage = await BankabilityEngine.exportLoanPackage(merchantId2);
+
     } catch (e) {
       print('Error loading bankability data: $e');
     } finally {
@@ -516,10 +531,28 @@ class _BankabilityDashboardScreenState extends ConsumerState<BankabilityDashboar
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Username'),
+              subtitle: Text(_userInfo?['username'] ?? 'Unknown'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.store),
+              title: const Text('Business'),
+              subtitle: Text(_userInfo?['business_name'] ?? 'Unknown'),
+            ),
+            ListTile(
               leading: const Icon(Icons.info),
               title: const Text('Merchant ID'),
-              subtitle: const Text('1'),
+              subtitle: Text(_userInfo?['merchant_id'] ?? 'N/A'),
             ),
+            if (_serverProfile != null &&
+                _serverProfile!['merchant'] != null)
+              ListTile(
+                leading: const Icon(Icons.score),
+                title: const Text('Server Bankability Score'),
+                subtitle: Text(
+                    '${_serverProfile!['merchant']['bankability_score'] ?? 0}'),
+              ),
             ListTile(
               leading: const Icon(Icons.location_on),
               title: const Text('Service Area'),

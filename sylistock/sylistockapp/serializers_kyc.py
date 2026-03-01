@@ -2,7 +2,7 @@
 KYC (Know Your Customer) serializers for API
 """
 from rest_framework import serializers
-from ..models_kyc import (
+from .models_kyc import (
     KYCDocument, KYCVerification, BankAccount, ComplianceCheck
 )
 

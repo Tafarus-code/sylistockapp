@@ -2,6 +2,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.http import HttpResponse
 from django.db import transaction
 import csv
 import io
@@ -118,18 +119,22 @@ def export_inventory(request):
         ).select_related('product')
 
         if format_type == 'csv':
-            response = Response(content_type='text/csv')
+            response = HttpResponse(content_type='text/csv')
             disposition = 'attachment; filename=inventory.csv'
             response['Content-Disposition'] = disposition
 
             writer = csv.writer(response)
-            writer.writerow(['Barcode', 'Name', 'Quantity', 'Price'])
+            writer.writerow([
+                'Barcode', 'Name', 'Quantity',
+                'Cost Price', 'Sale Price',
+            ])
 
             for item in stock_items:
                 writer.writerow([
                     item.product.barcode,
                     item.product.name,
                     item.quantity,
+                    item.cost_price,
                     item.sale_price,
                 ])
 

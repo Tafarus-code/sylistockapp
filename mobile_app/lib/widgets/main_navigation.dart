@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:uuid/uuid.dart';
 import '../theme/app_theme.dart';
 import '../screens/inventory/enhanced_scanner_screen.dart';
+import '../screens/inventory/category_management_screen.dart';
 import '../screens/bankability_dashboard_screen.dart';
 import '../screens/kyc/kyc_dashboard_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/reports/reports_screen.dart';
+import '../screens/login_screen.dart';
+import '../services/auth_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
@@ -18,10 +19,28 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
+  String _businessName = 'Krediti-GN';
+  String _username = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final info = await AuthService.getUserInfo();
+    if (mounted) {
+      setState(() {
+        _businessName = info['business_name'] ?? 'Krediti-GN';
+        _username = info['username'] ?? '';
+      });
+    }
+  }
 
   final List<Widget> _screens = [
     const EnhancedScannerScreen(),
-    const CategoriesScreen(),
+    const CategoryManagementScreen(),
     const BankabilityDashboardScreen(),
     const KYCDashboardScreen(),
   ];
@@ -91,12 +110,12 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Krediti-GN',
+            _businessName.isNotEmpty ? _businessName : 'Krediti-GN',
             style: AppTheme.headline6.copyWith(color: Colors.white),
           ),
           const SizedBox(height: 4),
           Text(
-            'Bankability-as-a-Service',
+            _username.isNotEmpty ? '@$_username' : 'Bankability-as-a-Service',
             style: AppTheme.bodyText2.copyWith(color: Colors.white70),
           ),
         ],
@@ -203,6 +222,13 @@ class _MainNavigationState extends State<MainNavigation> {
           subtitle: 'App version and info',
           onTap: () => _navigateToAbout(),
         ),
+        const Divider(),
+        _buildDrawerItem(
+          icon: Icons.logout,
+          title: 'Logout',
+          subtitle: 'Sign out of your account',
+          onTap: () => _logout(),
+        ),
         const SizedBox(height: 16),
       ],
     );
@@ -272,6 +298,34 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Logout',
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      await AuthService().logout();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    }
+  }
+
   void _scanItem(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Use floating + button to add categories!')),
@@ -281,407 +335,6 @@ class _MainNavigationState extends State<MainNavigation> {
   void _showNotifications(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('No new notifications')),
-    );
-  }
-}
-
-@HiveType(typeId: 8)
-class WorkingCategory {
-  @HiveField(0)
-  final String id;
-  @HiveField(1)
-  final String name;
-  @HiveField(2)
-  final String? description;
-  @HiveField(3)
-  final DateTime createdAt;
-
-  WorkingCategory({
-    required this.id,
-    required this.name,
-    this.description,
-    required this.createdAt,
-  });
-}
-
-class WorkingCategoryAdapter extends TypeAdapter<WorkingCategory> {
-  @override
-  final int typeId = 8;
-
-  @override
-  WorkingCategory read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{};
-    for (int i = 0; i < numOfFields; i++) {
-      final fieldId = reader.readByte();
-      final value = reader.read();
-      fields[fieldId] = value;
-    }
-
-    return WorkingCategory(
-      id: fields[0] as String,
-      name: fields[1] as String,
-      description: fields[2] as String?,
-      createdAt: DateTime.parse(fields[3] as String),
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, WorkingCategory obj) {
-    writer.writeByte(4);
-    writer.write(obj.id);
-    writer.write(obj.name);
-    writer.write(obj.description);
-    writer.write(obj.createdAt.toIso8601String());
-  }
-}
-
-class CategoriesScreen extends StatefulWidget {
-  const CategoriesScreen({Key? key}) : super(key: key);
-
-  @override
-  State<CategoriesScreen> createState() => _CategoriesScreenState();
-}
-
-class _CategoriesScreenState extends State<CategoriesScreen> {
-  late Box<WorkingCategory> _categoryBox;
-  List<WorkingCategory> _categories = [];
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeHive();
-  }
-
-  Future<void> _initializeHive() async {
-    try {
-      print('Starting Hive initialization...');
-      
-      // Register adapter
-      if (!Hive.isAdapterRegistered(8)) {
-        Hive.registerAdapter(WorkingCategoryAdapter());
-        print('WorkingCategoryAdapter registered');
-      }
-      
-      // Open box
-      _categoryBox = await Hive.openBox<WorkingCategory>('working_categories');
-      print('Working category box opened successfully');
-      
-      // Load existing categories
-      await _loadCategories();
-      
-      setState(() {});
-    } catch (e) {
-      print('Error initializing Hive: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hive initialization error: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _loadCategories() async {
-    try {
-      final keys = _categoryBox.keys;
-      _categories.clear();
-      
-      for (final key in keys) {
-        final category = _categoryBox.get(key);
-        if (category != null) {
-          _categories.add(category);
-        }
-      }
-      
-      print('Loaded ${_categories.length} categories');
-    } catch (e) {
-      print('Error loading categories: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Category Management'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _addCategory,
-                          child: const Text('Add Category'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _loadCategories,
-                          child: const Text('Refresh Categories'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: _categories.isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.category,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'No categories yet. Add one!',
-                                style: TextStyle(fontSize: 18),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Tap the + button to create your first category',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _categories.length,
-                          itemBuilder: (context, index) {
-                            final category = _categories[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                              child: ListTile(
-                                leading: const Icon(Icons.category, color: AppTheme.primaryColor),
-                                title: Text(category.name),
-                                subtitle: category.description != null 
-                                    ? Text(category.description!)
-                                    : null,
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _editCategory(category),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _deleteCategory(category.id),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddCategoryDialog,
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Future<void> _addCategory() async {
-    final category = WorkingCategory(
-      id: const Uuid().v4(),
-      name: 'Category ${DateTime.now().millisecondsSinceEpoch}',
-      description: 'Created at ${DateTime.now()}',
-      createdAt: DateTime.now(),
-    );
-
-    try {
-      await _categoryBox.put(category.id, category);
-      await _loadCategories();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Category added successfully!')),
-        );
-      }
-    } catch (e) {
-      print('Error adding category: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding category: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _deleteCategory(String id) async {
-    try {
-      await _categoryBox.delete(id);
-      await _loadCategories();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Category deleted successfully!')),
-        );
-      }
-    } catch (e) {
-      print('Error deleting category: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting category: $e')),
-        );
-      }
-    }
-  }
-
-  void _editCategory(WorkingCategory category) {
-    final nameController = TextEditingController(text: category.name);
-    final descriptionController = TextEditingController(text: category.description ?? '');
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Category'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Category Name',
-                hintText: 'Enter category name',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Enter description',
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isNotEmpty) {
-                final updatedCategory = WorkingCategory(
-                  id: category.id,
-                  name: nameController.text,
-                  description: descriptionController.text.isEmpty 
-                      ? null 
-                      : descriptionController.text,
-                  createdAt: category.createdAt,
-                );
-
-                try {
-                  await _categoryBox.put(updatedCategory.id, updatedCategory);
-                  await _loadCategories();
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Category updated successfully!')),
-                    );
-                  }
-                } catch (e) {
-                  print('Error updating category: $e');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error updating category: $e')),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddCategoryDialog() {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Category'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Category Name',
-                hintText: 'Enter category name',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Enter description',
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isNotEmpty) {
-                final category = WorkingCategory(
-                  id: const Uuid().v4(),
-                  name: nameController.text,
-                  description: descriptionController.text.isEmpty 
-                      ? null 
-                      : descriptionController.text,
-                  createdAt: DateTime.now(),
-                );
-
-                try {
-                  await _categoryBox.put(category.id, category);
-                  await _loadCategories();
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Category added successfully!')),
-                    );
-                  }
-                } catch (e) {
-                  print('Error adding category: $e');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error adding category: $e')),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
     );
   }
 }
