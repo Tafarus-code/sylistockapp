@@ -42,7 +42,7 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Allow connections from Flutter emulator and local network devices
 if DEBUG:
-    ALLOWED_HOSTS += ['10.0.2.2', '0.0.0.0', '*']
+    ALLOWED_HOSTS += ['10.0.2.2', '0.0.0.0', '*']  # nosec B104
 
 # Add Railway specific hosts
 if 'RAILWAY_ENVIRONMENT' in os.environ or 'RAILWAY_SERVICE_NAME' in os.environ:
