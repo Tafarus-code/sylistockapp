@@ -7,6 +7,8 @@ import '../screens/bankability_dashboard_screen.dart';
 import '../screens/kyc/kyc_dashboard_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/reports/reports_screen.dart';
+import '../screens/login_screen.dart';
+import '../services/auth_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
@@ -18,6 +20,24 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
+  String _businessName = 'Krediti-GN';
+  String _username = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final info = await AuthService.getUserInfo();
+    if (mounted) {
+      setState(() {
+        _businessName = info['business_name'] ?? 'Krediti-GN';
+        _username = info['username'] ?? '';
+      });
+    }
+  }
 
   final List<Widget> _screens = [
     const EnhancedScannerScreen(),
@@ -91,12 +111,12 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Krediti-GN',
+            _businessName.isNotEmpty ? _businessName : 'Krediti-GN',
             style: AppTheme.headline6.copyWith(color: Colors.white),
           ),
           const SizedBox(height: 4),
           Text(
-            'Bankability-as-a-Service',
+            _username.isNotEmpty ? '@$_username' : 'Bankability-as-a-Service',
             style: AppTheme.bodyText2.copyWith(color: Colors.white70),
           ),
         ],
@@ -203,6 +223,13 @@ class _MainNavigationState extends State<MainNavigation> {
           subtitle: 'App version and info',
           onTap: () => _navigateToAbout(),
         ),
+        const Divider(),
+        _buildDrawerItem(
+          icon: Icons.logout,
+          title: 'Logout',
+          subtitle: 'Sign out of your account',
+          onTap: () => _logout(),
+        ),
         const SizedBox(height: 16),
       ],
     );
@@ -270,6 +297,34 @@ class _MainNavigationState extends State<MainNavigation> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Logistics section coming soon!')),
     );
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Logout',
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      await AuthService().logout();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    }
   }
 
   void _scanItem(BuildContext context) {

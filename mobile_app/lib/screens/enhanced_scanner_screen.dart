@@ -10,25 +10,25 @@ class EnhancedScannerScreen extends ConsumerStatefulWidget {
   const EnhancedScannerScreen({super.key});
 
   @override
-  ConsumerState<EnhancedScannerScreen> createState() => _EnhancedScannerScreenState();
+  ConsumerState<EnhancedScannerScreen> createState() =>
+      _EnhancedScannerScreenState();
 }
 
-class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
+class _EnhancedScannerScreenState
+    extends ConsumerState<EnhancedScannerScreen> {
   bool _isOnline = true;
   bool _showAdvancedOptions = false;
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _barcodeController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController(text: '1');
+  final TextEditingController _quantityController =
+      TextEditingController(text: '1');
   final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _initializeEnhancedScanner();
-    // Initialize with local data
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      InventoryService.initializeWithLocalData(ref);
-    });
   }
 
   Future<void> _initializeEnhancedScanner() async {
@@ -49,74 +49,35 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final inventoryState = ref.watch(inventoryProvider);
-    final pendingSyncCount = ref.watch(pendingSyncCountProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Krediti-GN Scanner'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          // Online/Offline status indicator
+      body: Column(
+        children: [
+          // Status bar
           Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _isOnline ? Colors.green : Colors.red,
-              borderRadius: BorderRadius.circular(20),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: _isOnline ? Colors.green.shade50 : Colors.orange.shade50,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  _isOnline ? Icons.wifi : Icons.wifi_off,
-                  size: 16,
-                  color: Colors.white,
+                  _isOnline ? Icons.cloud_done : Icons.cloud_off,
+                  color: _isOnline ? Colors.green : Colors.orange,
+                  size: 20,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  _isOnline ? 'Online' : 'Offline',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _isOnline ? 'Connected to server' : 'Offline mode',
+                    style: TextStyle(
+                      color: _isOnline ? Colors.green : Colors.orange,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          // Pending sync indicator
-          if (pendingSyncCount > 0)
-            Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.sync,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$pendingSyncCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
+
           // Quick actions panel
           Container(
             padding: const EdgeInsets.all(16),
@@ -125,35 +86,45 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _toggleAdvancedOptions(),
-                    icon: Icon(_showAdvancedOptions ? Icons.expand_less : Icons.expand_more),
-                    label: Text(_showAdvancedOptions ? 'Simple' : 'Advanced'),
+                    icon: Icon(_showAdvancedOptions
+                        ? Icons.expand_less
+                        : Icons.expand_more),
+                    label: Text(
+                        _showAdvancedOptions ? 'Simple' : 'Advanced'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      foregroundColor:
+                          Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  onPressed: () => InventoryService.refreshFromServer(ref),
+                  onPressed: () =>
+                      ref.read(inventoryProvider.notifier).refresh(),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Sync'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                    foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.secondaryContainer,
+                    foregroundColor:
+                        Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
                 ),
               ],
             ),
           ),
-          
+
           // Advanced options panel
           if (_showAdvancedOptions) ...[
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -161,9 +132,18 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
                   TextField(
                     controller: _barcodeController,
                     decoration: const InputDecoration(
-                      labelText: 'Manual Barcode Entry',
+                      labelText: 'Barcode',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.qr_code_scanner),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Item Name *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.label),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -207,7 +187,7 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
             ),
             const SizedBox(height: 8),
           ],
-          
+
           // Search bar
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -223,18 +203,37 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
                 fillColor: Theme.of(context).colorScheme.surface,
               ),
               onChanged: (value) {
-                // Implement search functionality
+                // Search triggers rebuild via provider
               },
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Inventory list
           Expanded(
-            child: Builder(
-              builder: (context) {
-                final items = InventoryService.currentItems;
+            child: inventoryState.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: $error'),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => ref
+                          .read(inventoryProvider.notifier)
+                          .refresh(),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (items) {
                 if (items.isEmpty) {
                   return Center(
                     child: Column(
@@ -243,21 +242,32 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
                         Icon(
                           Icons.inventory_2_outlined,
                           size: 64,
-                          color: Theme.of(context).colorScheme.outline,
+                          color:
+                              Theme.of(context).colorScheme.outline,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           'No items in inventory',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outline,
+                              ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Start scanning barcodes to add items',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outline,
+                              ),
                         ),
                       ],
                     ),
@@ -265,7 +275,8 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -273,43 +284,51 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer,
                           child: Icon(
                             Icons.inventory,
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer,
                           ),
                         ),
                         title: Text(item.name),
-                        subtitle: Text('Barcode: ${item.barcode}'),
+                        subtitle:
+                            Text('Barcode: ${item.barcode}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.end,
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   'Qty: ${item.quantity}',
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall,
                                 ),
                               ],
                             ),
                             PopupMenuButton(
                               itemBuilder: (context) => [
-                                PopupMenuItem(
+                                const PopupMenuItem(
                                   value: 'edit',
                                   child: Row(
-                                    children: const [
+                                    children: [
                                       Icon(Icons.edit),
                                       SizedBox(width: 8),
                                       Text('Edit'),
                                     ],
                                   ),
                                 ),
-                                PopupMenuItem(
+                                const PopupMenuItem(
                                   value: 'delete',
                                   child: Row(
-                                    children: const [
+                                    children: [
                                       Icon(Icons.delete),
                                       SizedBox(width: 8),
                                       Text('Delete'),
@@ -317,11 +336,14 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
                                   ),
                                 ),
                               ],
-                              onSelected: (value) => _handleItemAction(item, value as String),
+                              onSelected: (value) =>
+                                  _handleItemAction(
+                                      item, value as String),
                             ),
                           ],
                         ),
-                        onTap: () => _navigateToItemDetails(item),
+                        onTap: () =>
+                            _navigateToItemDetails(item),
                       ),
                     );
                   },
@@ -334,20 +356,21 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Dashboard button
           FloatingActionButton(
-            onPressed: () => Navigator.pushNamed(context, '/dashboard'),
-            backgroundColor: Theme.of(context).colorScheme.secondary,
-            child: const Icon(Icons.dashboard),
+            onPressed: () =>
+                Navigator.pushNamed(context, '/dashboard'),
+            backgroundColor:
+                Theme.of(context).colorScheme.secondary,
             heroTag: "dashboard",
+            child: const Icon(Icons.dashboard),
           ),
           const SizedBox(height: 16),
-          // Scanner button
           FloatingActionButton(
             onPressed: () => _startScanning(),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            child: const Icon(Icons.qr_code_scanner),
+            backgroundColor:
+                Theme.of(context).colorScheme.primary,
             heroTag: "scanner",
+            child: const Icon(Icons.qr_code_scanner),
           ),
         ],
       ),
@@ -362,40 +385,51 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
 
   void _addManualItem() async {
     final barcode = _barcodeController.text.trim();
-    final quantity = int.tryParse(_quantityController.text) ?? 1;
-    final price = double.tryParse(_priceController.text);
+    final name = _nameController.text.trim();
+    final quantity =
+        int.tryParse(_quantityController.text) ?? 1;
+    final price = double.tryParse(_priceController.text) ?? 0;
 
-    if (barcode.isEmpty) {
+    if (barcode.isEmpty || name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a barcode')),
+        const SnackBar(
+            content: Text('Barcode and item name are required')),
       );
       return;
     }
 
-    final item = InventoryItem(
-      id: DateTime.now().millisecondsSinceEpoch,
-      barcode: barcode,
-      name: 'Manual Entry',
-      quantity: quantity,
-      price: price,
-      createdAt: DateTime.now(),
-    );
-
-    await InventoryService.addItem(ref, item);
-    
-    _clearManualEntryFields();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Item added successfully')),
-    );
+    try {
+      await ref.read(inventoryProvider.notifier).addItem(
+            barcode: barcode,
+            name: name,
+            quantity: quantity,
+            price: price,
+          );
+      _clearManualEntryFields();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Item added successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add item: $e')),
+        );
+      }
+    }
   }
 
   void _clearManualEntryFields() {
     _barcodeController.clear();
+    _nameController.clear();
     _quantityController.text = '1';
     _priceController.clear();
   }
 
-  void _handleItemAction(InventoryItem item, String action) async {
+  void _handleItemAction(
+      InventoryItem item, String action) async {
     switch (action) {
       case 'edit':
         _navigateToItemDetails(item);
@@ -411,16 +445,18 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Item'),
-        content: Text('Are you sure you want to delete ${item.name}?'),
+        content: Text(
+            'Are you sure you want to delete ${item.name}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              await InventoryService.deleteItem(ref, item.id);
+              // Refresh after delete
+              ref.read(inventoryProvider.notifier).refresh();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Item deleted')),
               );
@@ -443,16 +479,30 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
 
   Future<void> _startScanning() async {
     try {
-      await OptimizedDataWedgeService.instance.startScanning((barcode) {
-        InventoryService.processBarcode(ref, barcode);
+      await OptimizedDataWedgeService.instance
+          .startScanning((barcode) async {
+        try {
+          await ref
+              .read(inventoryProvider.notifier)
+              .processScan(barcode: barcode);
+        } catch (e) {
+          print('Scan processing error: $e');
+        }
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Scanner started - point at barcode')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Scanner started - point at barcode')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to start scanner: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to start scanner: $e')),
+        );
+      }
     }
   }
 }

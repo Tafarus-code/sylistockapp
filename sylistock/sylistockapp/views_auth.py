@@ -53,7 +53,7 @@ def register(request):
 
     # Create merchant profile
     from .models import MerchantProfile
-    MerchantProfile.objects.create(
+    merchant_profile = MerchantProfile.objects.create(
         user=user,
         business_name=business_name,
         location=location,
@@ -69,6 +69,7 @@ def register(request):
             'username': user.username,
             'email': user.email,
             'business_name': business_name,
+            'merchant_id': merchant_profile.pk,
         },
     }, status=status.HTTP_201_CREATED)
 
@@ -95,8 +96,10 @@ def login(request):
     token, _ = Token.objects.get_or_create(user=user)
 
     merchant_name = ''
+    merchant_id = None
     if hasattr(user, 'merchantprofile'):
         merchant_name = user.merchantprofile.business_name
+        merchant_id = user.merchantprofile.pk
 
     return Response({
         'success': True,
@@ -106,6 +109,7 @@ def login(request):
             'username': user.username,
             'email': user.email,
             'business_name': merchant_name,
+            'merchant_id': merchant_id,
         },
     })
 
@@ -135,6 +139,7 @@ def profile(request):
     if hasattr(user, 'merchantprofile'):
         mp = user.merchantprofile
         merchant_data = {
+            'id': mp.pk,
             'business_name': mp.business_name,
             'location': mp.location,
             'bankability_score': float(mp.bankability_score),
