@@ -180,4 +180,3 @@ def delete_category(request, category_id):
             {'error': 'Merchant profile not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-

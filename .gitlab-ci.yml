@@ -41,7 +41,7 @@ unit_tests:
     - pip install "pytest>=8.3" pytest-django pytest-cov coverage
   script:
     - cd sylistock
-    - python manage.py migrate
+    - python manage.py migrate --fake-initial
     - pytest --cov=. --cov-report=term-missing
   coverage: '/TOTAL.*\s+(\d+%)$/'
 deploy_to_render:

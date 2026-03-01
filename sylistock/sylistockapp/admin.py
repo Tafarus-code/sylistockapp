@@ -145,4 +145,3 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'merchant']
     search_fields = ['name', 'description']
 
-
