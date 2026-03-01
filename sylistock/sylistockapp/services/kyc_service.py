@@ -250,6 +250,9 @@ class KYCService:
             )
             kyc_verification.save()
 
+            # Update bankability score after compliance result
+            kyc_verification.merchant.update_bankability_score()
+
             return {
                 'success': True,
                 'overall_score': overall_score,
@@ -448,6 +451,106 @@ class KYCService:
                     new_verification.verification_level
                 ),
                 'status': new_verification.status,
+            }
+
+        except KYCVerification.DoesNotExist:
+            return {
+                'success': False,
+                'error': 'KYC verification not found',
+            }
+
+    def get_kyc_documents(self, kyc_id):
+        """Get all documents for a KYC verification"""
+        try:
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+            documents = KYCDocument.objects.filter(
+                verification=kyc_verification
+            )
+
+            return {
+                'success': True,
+                'documents': [
+                    {
+                        'id': str(doc.id),
+                        'document_type': doc.document_type,
+                        'file_name': doc.file_name,
+                        'verification_status': (
+                            doc.verification_status
+                        ),
+                        'verification_score': doc.verification_score,
+                        'verification_notes': doc.verification_notes,
+                        'upload_date': doc.upload_date,
+                        'is_valid': doc.is_valid(),
+                    }
+                    for doc in documents
+                ],
+            }
+
+        except KYCVerification.DoesNotExist:
+            return {
+                'success': False,
+                'error': 'KYC verification not found',
+            }
+
+    def get_bank_accounts(self, kyc_id):
+        """Get all bank accounts for a KYC verification"""
+        try:
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+            accounts = BankAccount.objects.filter(
+                verification=kyc_verification
+            )
+
+            return {
+                'success': True,
+                'bank_accounts': [
+                    {
+                        'id': str(acc.id),
+                        'bank_name': acc.bank_name,
+                        'account_name': acc.account_name,
+                        'account_number': acc.mask_account_number(),
+                        'account_type': acc.account_type,
+                        'verification_status': (
+                            acc.verification_status
+                        ),
+                        'verification_score': acc.verification_score,
+                        'verification_notes': acc.verification_notes,
+                        'created_at': acc.created_at,
+                    }
+                    for acc in accounts
+                ],
+            }
+
+        except KYCVerification.DoesNotExist:
+            return {
+                'success': False,
+                'error': 'KYC verification not found',
+            }
+
+    def get_compliance_checks(self, kyc_id):
+        """Get all compliance checks for a KYC verification"""
+        try:
+            kyc_verification = KYCVerification.objects.get(id=kyc_id)
+            checks = ComplianceCheck.objects.filter(
+                verification=kyc_verification
+            )
+
+            return {
+                'success': True,
+                'compliance_checks': [
+                    {
+                        'id': str(chk.id),
+                        'check_type': chk.check_type,
+                        'result': chk.result,
+                        'score': chk.score,
+                        'max_score': chk.max_score,
+                        'percentage_score': (
+                            chk.get_percentage_score()
+                        ),
+                        'details': chk.details,
+                        'checked_at': chk.checked_at,
+                    }
+                    for chk in checks
+                ],
             }
 
         except KYCVerification.DoesNotExist:

@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import ProcessScanView
 from .views_production import (
     add_stock_item,
     remove_stock_item,
@@ -34,6 +35,8 @@ from .views_kyc import (
     get_kyc_documents,
     get_bank_accounts,
     get_compliance_checks,
+    expire_kyc_verification,
+    renew_kyc_verification,
 )
 from .views_insurance import (
     calculate_premium,
@@ -49,6 +52,9 @@ from .views_insurance import (
 )
 
 urlpatterns = [
+    # Barcode scan processing
+    path('scan/', ProcessScanView.as_view(), name='process-scan'),
+
     # Stock management
     path('items/', get_stock_items, name='stock-items'),
     path('items/add/', add_stock_item, name='add-stock-item'),
@@ -95,6 +101,10 @@ urlpatterns = [
          name='kyc-bank-accounts'),
     path('kyc/compliance/<uuid:kyc_id>/', get_compliance_checks,
          name='kyc-compliance'),
+    path('kyc/expire/', expire_kyc_verification,
+         name='kyc-expire'),
+    path('kyc/renew/', renew_kyc_verification,
+         name='kyc-renew'),
 
     # Insurance
     path('insurance/calculate-premium/', calculate_premium,

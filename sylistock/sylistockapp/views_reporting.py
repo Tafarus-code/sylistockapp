@@ -105,7 +105,7 @@ def merchant_performance(request):
         # Get basic metrics
         total_products = merchant_profile.stockitem_set.count()
         low_stock_count = merchant_profile.stockitem_set.filter(
-            quantity__lte=5
+            quantity__lte=merchant_profile.alert_threshold
         ).count()
 
         # Get recent activity

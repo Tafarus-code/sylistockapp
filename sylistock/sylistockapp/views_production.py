@@ -62,6 +62,9 @@ def add_stock_item(request):
                 ),
             )
 
+        # Update bankability score after stock change
+        merchant_profile.update_bankability_score()
+
         return Response({
             'id': stock_item.pk,
             'barcode': barcode,

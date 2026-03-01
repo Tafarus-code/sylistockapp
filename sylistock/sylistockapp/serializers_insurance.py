@@ -2,7 +2,7 @@
 Insurance serializers for API
 """
 from rest_framework import serializers
-from ..models_insurance import (
+from .models_insurance import (
     InsurancePolicy, InsuranceClaim, InsuranceRiskAssessment,
     InsuranceCoverage, InsurancePremium
 )

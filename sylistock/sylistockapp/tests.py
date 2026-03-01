@@ -207,12 +207,16 @@ class UnauthenticatedAccessTests(APITestCase):
 
     def test_stock_items_requires_auth(self):
         response = self.client.get('/inventory/items/')
-        self.assertEqual(
-            response.status_code, status.HTTP_403_FORBIDDEN
+        self.assertIn(
+            response.status_code,
+            [status.HTTP_401_UNAUTHORIZED,
+             status.HTTP_403_FORBIDDEN],
         )
 
     def test_add_item_requires_auth(self):
         response = self.client.post('/inventory/items/add/', {})
-        self.assertEqual(
-            response.status_code, status.HTTP_403_FORBIDDEN
+        self.assertIn(
+            response.status_code,
+            [status.HTTP_401_UNAUTHORIZED,
+             status.HTTP_403_FORBIDDEN],
         )

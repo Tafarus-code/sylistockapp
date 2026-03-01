@@ -2,6 +2,8 @@
 Authentication views for user registration and login
 """
 from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -32,6 +34,15 @@ def register(request):
     if User.objects.filter(username=username).exists():
         return Response({
             'error': 'Username already exists',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate password strength
+    try:
+        validate_password(password)
+    except DjangoValidationError as e:
+        return Response({
+            'error': 'Password too weak',
+            'details': list(e.messages),
         }, status=status.HTTP_400_BAD_REQUEST)
 
     user = User.objects.create_user(

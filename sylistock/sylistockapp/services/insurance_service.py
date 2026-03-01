@@ -218,6 +218,8 @@ class InsuranceService:
                     }
 
                 claim.reviewed_at = timezone.now()
+                if notes:
+                    claim.settlement_notes = notes
                 claim.save()
 
                 return {
@@ -262,10 +264,16 @@ class InsuranceService:
                 'error': 'Policy not found',
             }
 
-    def get_merchant_policies(self, merchant_id):
+    def get_merchant_policies(self, merchant_id, page=1, page_size=20):
         """Get all policies for a merchant"""
         try:
-            policies = InsurancePolicy.objects.filter(merchant_id=merchant_id)
+            policies = InsurancePolicy.objects.filter(
+                merchant_id=merchant_id
+            )
+            total = policies.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            policies_page = policies[start:end]
 
             return {
                 'success': True,
@@ -281,8 +289,11 @@ class InsuranceService:
                         'is_active': policy.is_active(),
                         'days_until_expiry': policy.days_until_expiry(),
                     }
-                    for policy in policies
-                ]
+                    for policy in policies_page
+                ],
+                'page': page,
+                'page_size': page_size,
+                'total': total,
             }
 
         except Exception:
@@ -291,10 +302,14 @@ class InsuranceService:
                 'error': 'Failed to retrieve policies',
             }
 
-    def get_policy_claims(self, policy_id):
+    def get_policy_claims(self, policy_id, page=1, page_size=20):
         """Get all claims for a policy"""
         try:
             claims = InsuranceClaim.objects.filter(policy_id=policy_id)
+            total = claims.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            claims_page = claims[start:end]
 
             return {
                 'success': True,
@@ -310,8 +325,11 @@ class InsuranceService:
                         'submitted_at': claim.submitted_at,
                         'incident_date': claim.incident_date,
                     }
-                    for claim in claims
-                ]
+                    for claim in claims_page
+                ],
+                'page': page,
+                'page_size': page_size,
+                'total': total,
             }
 
         except Exception:
@@ -320,10 +338,16 @@ class InsuranceService:
                 'error': 'Failed to retrieve claims',
             }
 
-    def get_policy_premiums(self, policy_id):
+    def get_policy_premiums(self, policy_id, page=1, page_size=20):
         """Get all premiums for a policy"""
         try:
-            premiums = InsurancePremium.objects.filter(policy_id=policy_id)
+            premiums = InsurancePremium.objects.filter(
+                policy_id=policy_id
+            )
+            total = premiums.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            premiums_page = premiums[start:end]
 
             return {
                 'success': True,
@@ -338,8 +362,11 @@ class InsuranceService:
                                         if premium.paid_amount else 0),
                         'paid_date': premium.paid_date,
                     }
-                    for premium in premiums
-                ]
+                    for premium in premiums_page
+                ],
+                'page': page,
+                'page_size': page_size,
+                'total': total,
             }
 
         except Exception:
@@ -446,13 +473,25 @@ class InsuranceService:
     def _create_premium_schedule(self, policy):
         """Create premium payment schedule"""
         premium_amount = policy.premium_amount
-        due_day = policy.start_date.day
 
         # Create monthly premiums for 1 year
         for month in range(12):
-            due_date = (policy.start_date.replace(day=due_day) +
-                        timedelta(days=30 * month))
-            premium_number = f"{policy.policy_number}-PREM-{month + 1:02d}"
+            # Calculate proper monthly due date
+            year = policy.start_date.year
+            m = policy.start_date.month + month
+            if m > 12:
+                year += (m - 1) // 12
+                m = ((m - 1) % 12) + 1
+            # Clamp day to last day of target month
+            import calendar
+            max_day = calendar.monthrange(year, m)[1]
+            day = min(policy.start_date.day, max_day)
+            due_date = policy.start_date.replace(
+                year=year, month=m, day=day
+            )
+            premium_number = (
+                f"{policy.policy_number}-PREM-{month + 1:02d}"
+            )
 
             InsurancePremium.objects.create(
                 policy=policy,
