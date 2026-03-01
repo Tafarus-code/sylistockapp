@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 part 'enhanced_inventory_item.g.dart';
 
 @HiveType(typeId: 0)
-class EnhancedInventoryItem extends HiveObject {
+class EnhancedInventoryItem {
   @HiveField(0)
   final String id;
   
@@ -247,7 +247,7 @@ class EnhancedInventoryItem extends HiveObject {
 }
 
 @HiveType(typeId: 1)
-class InventoryCategory extends HiveObject {
+class InventoryCategory {
   @HiveField(0)
   final String id;
   
@@ -315,27 +315,39 @@ class InventoryCategory extends HiveObject {
     return {
       'id': id,
       'name': name,
-      'description': description,
-      'icon': icon,
-      'color': color,
-      'parentId': parentId,
-      'isActive': isActive,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'description': description ?? '',
+      'icon': icon ?? 'category',
+      'color': color.toString(),
+      'is_active': isActive,
     };
   }
 
   factory InventoryCategory.fromJson(Map<String, dynamic> json) {
+    // Parse color — can be int or String like "0xFF1976D2"
+    int parseColor(dynamic val) {
+      if (val == null) return 0xFF1976D2;
+      if (val is int) return val;
+      final s = val.toString();
+      return int.tryParse(s) ?? 0xFF1976D2;
+    }
+
+    // Parse dates — handle both camelCase and snake_case keys
+    DateTime parseDate(dynamic val) {
+      if (val == null) return DateTime.now();
+      if (val is DateTime) return val;
+      return DateTime.tryParse(val.toString()) ?? DateTime.now();
+    }
+
     return InventoryCategory(
-      id: json['id'],
-      name: json['name'],
+      id: json['id']?.toString(),
+      name: json['name'] ?? '',
       description: json['description'],
       icon: json['icon'],
-      color: json['color'] ?? 0xFF1976D2,
-      parentId: json['parentId'],
-      isActive: json['isActive'] ?? true,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      color: parseColor(json['color']),
+      parentId: json['parentId'] ?? json['parent_id'],
+      isActive: json['isActive'] ?? json['is_active'] ?? true,
+      createdAt: parseDate(json['createdAt'] ?? json['created_at']),
+      updatedAt: parseDate(json['updatedAt'] ?? json['updated_at']),
     );
   }
 

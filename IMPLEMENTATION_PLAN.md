@@ -1,46 +1,80 @@
-# Implementation Plan — All 15 Issues FIXED
+# Implementation Plan — Sylistockapp
 
-> **Date:** 2026-02-28  
-> **Status:** ✅ ALL ISSUES RESOLVED — 15/15 tests passing
-
----
-
-## Fixes Applied
-
-### 🔴 Critical (Would Crash at Runtime) — ALL FIXED
-
-| # | Issue | Fix | Files Changed |
-|---|-------|-----|--------------|
-| 1 | **Missing migrations** — Insurance models had zero migrations, KYC had 60+ pending field changes | Deleted old `0002_add_kyc_models.py`, created fresh `0002_full_schema_update.py` with all tables. Ran `migrate` successfully. | `migrations/0002_full_schema_update.py` |
-| 2 | **Broken serializer imports** — `from ..models_kyc` in same-level files | Changed to `from .models_kyc` and `from .models_insurance` | `serializers_kyc.py`, `serializers_insurance.py` |
-| 3 | **3 missing KYCService methods** — `get_kyc_documents()`, `get_bank_accounts()`, `get_compliance_checks()` called by views but didn't exist | Added all 3 methods to `KYCService` | `services/kyc_service.py` |
-| 4 | **Dead class-based views** — `InventoryListView`, `InventoryDetailView` had no URL routes | Removed dead views, kept `ProcessScanView`, wired it to `scan/` route | `views.py`, `urls.py` |
-
-### 🟠 Functional but Incomplete — ALL FIXED
-
-| # | Issue | Fix | Files Changed |
-|---|-------|-----|--------------|
-| 5 | **expire/renew KYC views not routed** | Added imports and URL routes for both views | `urls.py` |
-| 6 | **Hardcoded threshold `5`** in `merchant_performance` | Changed to `merchant_profile.alert_threshold` | `views_reporting.py` |
-| 7 | **`update_bankability_score()` never called** | Added calls after `add_stock_item`, `ProcessScanView.post()`, and `run_compliance_check()` | `views_production.py`, `views.py`, `services/kyc_service.py` |
-| 8 | **Document type mismatch** — model used `proof_of_address`, not a valid choice | Aligned both model and service to use `utility_bill` | `models_kyc.py` |
-| 9 | **Serializers unused** — kept as valid code for future use; fixed imports so they work | Fixed imports from `..` to `.` | `serializers_kyc.py`, `serializers_insurance.py` |
-| 10 | **CSV export used DRF `Response`** instead of Django `HttpResponse` | Changed to `HttpResponse(content_type='text/csv')`, added `cost_price` column | `views_bulk_operations.py` |
-
-### 🟡 Improvements — ALL FIXED
-
-| # | Issue | Fix | Files Changed |
-|---|-------|-----|--------------|
-| 11 | **No password validation** on registration | Added `validate_password()` call with Django validators | `views_auth.py` |
-| 12 | **No pagination** on insurance list endpoints | Added `page`/`page_size` params to `get_merchant_policies`, `get_policy_claims`, `get_policy_premiums` | `services/insurance_service.py`, `views_insurance.py` |
-| 13 | **No `MEDIA_ROOT`/`MEDIA_URL`** for file uploads | Added `MEDIA_URL = '/media/'` and `MEDIA_ROOT = BASE_DIR / 'media'` | `settings.py` |
-| 14 | **Premium schedule used 30-day approximation** | Replaced with proper calendar month calculation using `calendar.monthrange()` | `services/insurance_service.py` |
-| 15 | **`process_claim` ignored `notes` param** | Now saves `notes` to `claim.settlement_notes` | `services/insurance_service.py` |
+> **Last Updated:** 2026-03-01  
+> **Django Tests:** ✅ 15/15 passing  
+> **Flutter Analyze:** ✅ 0 errors (286 info/warnings)
 
 ---
 
-## Verification
+## ✅ COMPLETED — Working End-to-End (Flutter ↔ Django)
 
-- `python manage.py check` → **System check identified no issues (0 silenced)**
-- `python manage.py test sylistockapp` → **Ran 15 tests in 4.0s — OK**
-- `python manage.py migrate` → **All migrations applied successfully**
+| # | Feature | Details |
+|---|---------|---------|
+| 1 | **Authentication** | Register, Login, Logout, Profile — Token auth via `views_auth.py` ↔ `auth_service.dart` ↔ `login_screen.dart` |
+| 2 | **Inventory CRUD** | List, Add, Update items — `views_production.py` ↔ `enhanced_inventory_service.dart` ↔ `item_form_screen.dart`, `inventory_list_screen.dart` |
+| 3 | **Inventory Search** | Search by name/barcode — `views_stock_management.py` ↔ `enhanced_inventory_service.searchItems` |
+| 4 | **Item Details** | View item by ID — `get_item_details` ↔ `enhanced_inventory_service.getItemById` |
+| 5 | **Category CRUD** | Create, Read, Update, Delete categories with icons/colors — `views_categories.py` ↔ `enhanced_inventory_service` ↔ `category_management_screen.dart` |
+| 6 | **Category Selection** | Pick category when adding items, create new from selection screen — `category_selection_screen.dart` |
+| 7 | **Barcode Scanner → Search/Add** | Camera scan → search item → add if new — `enhanced_scanner_screen.dart` |
+| 8 | **Settings & Connection Test** | Configure API URL, test backend connection — `settings_screen.dart` |
+| 9 | **Bankability Dashboard (partial)** | Fetches live `bankability_score` from Django profile. Local credit engine runs on Hive data. |
+| 10 | **Database Migrations** | All models migrated: MerchantProfile, Product, StockItem, InventoryLog, Category, KYC models, Insurance models |
+| 11 | **Hive Storage (robust)** | Singleton `EnhancedInventoryService`, safe box init, auto-cleanup of corrupted data on startup |
+
+---
+
+## 🔴 CRITICAL — Must Fix
+
+| # | Task | What Exists | What's Missing | Effort |
+|---|------|-------------|----------------|--------|
+| 1 | **Fix Insurance navigation bug** | Drawer "Insurance" item exists | Routes to `_navigateToScreen(3)` = KYC tab, NOT Insurance. Insurance dashboard is **unreachable** from main navigation. | S |
+| 2 | **Connect KYC Dashboard to Django** | Django: 10+ KYC endpoints fully implemented. Flutter: `kyc_dashboard_screen.dart` (666 lines rich UI). `ApiConfig` has all KYC URLs. | Screen uses `Future.delayed` + **hardcoded mock data**. No `kyc_service.dart` in Flutter. | L |
+| 3 | **Connect Insurance Dashboard to Django** | Django: 10+ Insurance endpoints fully implemented. Flutter: `insurance_dashboard_screen.dart` (620 lines rich UI). `ApiConfig` has all Insurance URLs. | Screen uses `Future.delayed` + **hardcoded mock data**. No `insurance_service.dart` in Flutter. | L |
+
+---
+
+## 🟠 HIGH PRIORITY — Backend Exists, Needs Flutter Connection
+
+| # | Task | Backend | Flutter Gap | Effort |
+|---|------|---------|-------------|--------|
+| 4 | **Build Reports Screen** | `views_reporting.py`: `sales_report`, `merchant_performance` fully working. `ApiService` has methods. | `reports_screen.dart` is a 25-line "Coming Soon!" placeholder. | M |
+| 5 | **Build KYC Sub-Screens** | Django: `upload_kyc_document`, `add_bank_account`, `perform_compliance_checks`, `get_kyc_status`, etc. | `kyc_upload_screen.dart`, `kyc_bank_account_screen.dart`, `kyc_compliance_screen.dart` — all "Coming Soon!" placeholders. | L |
+| 6 | **Build Insurance Sub-Screens** | Django: `get_policy_details`, `submit_claim`, `process_claim`, `get_policy_premiums`, etc. | `insurance_policy_screen.dart`, `insurance_claims_screen.dart`, `insurance_premiums_screen.dart` — all "Coming Soon!" placeholders. | L |
+| 7 | **Build Alerts Screen** | `views_alerts.py`: `low_stock_alerts`, `set_stock_alert_threshold`. `ApiService.getLowStockAlerts()` exists. | No Flutter screen to view alerts or configure thresholds. | M |
+| 8 | **Wire Delete Item to API** | `views_production.py`: `remove_stock_item` endpoint exists. | `enhanced_inventory_service.deleteItem` only deletes from local Hive, does NOT call `ApiConfig.removeItem(id)`. | S |
+
+---
+
+## 🟡 MEDIUM PRIORITY — Improvements
+
+| # | Task | Details | Effort |
+|---|------|---------|--------|
+| 9 | **Wire Scanner to ProcessScanView** | Scanner uses search+add flow. Should call `ApiConfig.scanProcess` for proper IN/OUT actions with audit trail in `InventoryLog`. | M |
+| 10 | **Fix Scanner → Item Details** | `_navigateToItemDetails` has `// TODO` and shows a snackbar instead of navigating to `ItemDetailsScreen`. | S |
+| 11 | **Save Category on Product (server-side)** | `Product.category` FK exists in Django but `add_stock_item` view doesn't accept `category_id`. Flutter sends category locally but it's not persisted on the server. | S |
+| 12 | **Server-side Bankability Scoring** | Django's `MerchantProfile.update_bankability_score()` works. Flutter `BankabilityEngine` calculates locally only. Should fetch server score or sync. | M |
+| 13 | **Build Inventory History Screen** | Django `inventory_history` endpoint + `ApiService.getHistory()` exist. No Flutter UI to show the audit trail timeline. | M |
+
+---
+
+## 🟢 LOW PRIORITY — Nice to Have
+
+| # | Task | Details | Effort |
+|---|------|---------|--------|
+| 14 | **Build Bulk Operations Screen** | Django CSV import/export/bulk update all work. Need Flutter UI with file picker. | M |
+| 15 | **Logistics/What3Words Screen** | `What3WordsService` exists. Drawer shows "coming soon!". Need dedicated screen. | S |
+| 16 | **Help & About Screens** | Drawer entries → "coming soon!" snackbar. Simple info screens. | S |
+| 17 | **Offline Sync Queue** | Hive used as fallback cache. Proper offline queue for scans/operations would improve reliability. | L |
+
+---
+
+## Recommended Next Steps
+
+1. **Fix the Insurance nav bug** (5 min)
+2. **Create `kyc_service.dart`** and connect KYC dashboard to Django
+3. **Create `insurance_service.dart`** and connect Insurance dashboard to Django
+4. **Build the Reports screen** with charts using Django's sales/performance data
+5. **Wire deleteItem to API**
+
+*Effort: S = Small (<2h), M = Medium (2–6h), L = Large (6h+)*

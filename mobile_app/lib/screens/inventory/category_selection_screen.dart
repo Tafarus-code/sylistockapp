@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_theme.dart';
 import '../../services/enhanced_inventory_service.dart';
 import '../../models/enhanced_inventory_item.dart';
+import 'category_management_screen.dart';
 
 class CategorySelectionScreen extends ConsumerStatefulWidget {
   const CategorySelectionScreen({Key? key}) : super(key: key);
@@ -70,6 +71,24 @@ class _CategorySelectionScreenState extends ConsumerState<CategorySelectionScree
                           color: AppTheme.onSurfaceColor.withOpacity(0.5),
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const CategoryManagementScreen()),
+                          );
+                          _loadCategories();
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Create Category'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 )
@@ -81,6 +100,20 @@ class _CategorySelectionScreenState extends ConsumerState<CategorySelectionScree
                     return _buildCategoryTile(category);
                   },
                 ),
+      floatingActionButton: _categories.isNotEmpty
+          ? FloatingActionButton.small(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const CategoryManagementScreen()),
+                );
+                _loadCategories();
+              },
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 

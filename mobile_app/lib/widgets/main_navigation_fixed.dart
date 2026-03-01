@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../screens/inventory/enhanced_scanner_screen.dart';
+import '../screens/inventory/category_management_screen.dart';
 import '../screens/bankability_dashboard_screen.dart';
 import '../screens/kyc/kyc_dashboard_screen.dart';
 import '../screens/insurance/insurance_dashboard_screen.dart';
@@ -242,8 +243,9 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _navigateToCategories() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Category management coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CategoryManagementScreen()),
     );
   }
 

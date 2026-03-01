@@ -9,6 +9,7 @@ import '../../services/enhanced_inventory_service.dart';
 import '../../models/enhanced_inventory_item.dart';
 import 'item_form_screen.dart';
 import 'inventory_list_screen.dart';
+import 'category_management_screen.dart';
 
 class EnhancedScannerScreen extends ConsumerStatefulWidget {
   const EnhancedScannerScreen({Key? key}) : super(key: key);
@@ -341,8 +342,9 @@ class _EnhancedScannerScreenState extends ConsumerState<EnhancedScannerScreen> {
   }
 
   void _navigateToCategories() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Category management coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CategoryManagementScreen()),
     );
   }
 

@@ -56,6 +56,14 @@ class ApiConfig {
   static const String lowStockAlerts = '/inventory/alerts/low-stock/';
   static const String alertThreshold = '/inventory/alerts/threshold/';
 
+  // ─── Categories ───
+  static const String categories = '/inventory/categories/';
+  static const String createCategory = '/inventory/categories/create/';
+  static String updateCategory(int id) =>
+      '/inventory/categories/$id/update/';
+  static String deleteCategory(int id) =>
+      '/inventory/categories/$id/delete/';
+
   // ─── Reports ───
   static const String salesReport = '/inventory/reports/sales/';
   static const String merchantPerformance =

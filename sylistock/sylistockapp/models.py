@@ -83,9 +83,35 @@ class Product(models.Model):
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    category = models.ForeignKey(
+        'Category', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='products'
+    )
 
     def __str__(self):
         return f"{self.name} ({self.barcode})"
+
+
+class Category(models.Model):
+    """Product categories per merchant."""
+    merchant = models.ForeignKey(
+        MerchantProfile, on_delete=models.CASCADE, related_name='categories'
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    icon = models.CharField(max_length=50, blank=True, default='category')
+    color = models.CharField(max_length=10, blank=True, default='0xFF1976D2')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Categories"
+        unique_together = ('merchant', 'name')
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 
 class StockItem(models.Model):

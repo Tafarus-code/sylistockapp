@@ -9,11 +9,18 @@ class LocalStorageService {
   late Box _settingsBox;
 
   Future<void> init() async {
-    // Note: Hive.initFlutter() is already called in main.dart
-    
-    // For web, use default directory
-    _inventoryBox = await Hive.openBox<InventoryItem>(_inventoryBoxName);
-    _settingsBox = await Hive.openBox(_settingsBoxName);
+    try {
+      _inventoryBox = await Hive.openBox<InventoryItem>(_inventoryBoxName);
+    } catch (_) {
+      await Hive.deleteBoxFromDisk(_inventoryBoxName);
+      _inventoryBox = await Hive.openBox<InventoryItem>(_inventoryBoxName);
+    }
+    try {
+      _settingsBox = await Hive.openBox(_settingsBoxName);
+    } catch (_) {
+      await Hive.deleteBoxFromDisk(_settingsBoxName);
+      _settingsBox = await Hive.openBox(_settingsBoxName);
+    }
   }
 
   // Inventory operations

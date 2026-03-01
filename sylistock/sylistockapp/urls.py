@@ -50,6 +50,12 @@ from .views_insurance import (
     get_policy_premiums,
     get_merchant_risk_assessment,
 )
+from .views_categories import (
+    list_categories,
+    create_category,
+    update_category,
+    delete_category,
+)
 
 urlpatterns = [
     # Barcode scan processing
@@ -128,4 +134,12 @@ urlpatterns = [
     path('insurance/merchant/<int:merchant_id>/risk/',
          get_merchant_risk_assessment,
          name='insurance-risk-assessment'),
+
+    # Categories
+    path('categories/', list_categories, name='list-categories'),
+    path('categories/create/', create_category, name='create-category'),
+    path('categories/<int:category_id>/update/', update_category,
+         name='update-category'),
+    path('categories/<int:category_id>/delete/', delete_category,
+         name='delete-category'),
 ]

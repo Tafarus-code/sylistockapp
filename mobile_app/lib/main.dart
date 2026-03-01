@@ -14,7 +14,6 @@ import 'services/auth_service.dart';
 import 'config/api_config.dart';
 import 'models/inventory_item.dart';
 import 'models/enhanced_inventory_item.dart';
-import 'models/test_category.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +27,19 @@ void main() async {
     Hive.registerAdapter(InventoryItemAdapter());
     Hive.registerAdapter(EnhancedInventoryItemAdapter());
     Hive.registerAdapter(InventoryCategoryAdapter());
-    Hive.registerAdapter(TestCategoryAdapter());
-    Hive.registerAdapter(WorkingCategoryAdapter());
+
+    // Clean up old corrupted Hive boxes from previous versions
+    for (final boxName in [
+      'working_categories',
+      'categories',
+      'test_categories',
+      'inventory_categories',
+      'enhanced_inventory_items',
+    ]) {
+      try {
+        await Hive.deleteBoxFromDisk(boxName);
+      } catch (_) {}
+    }
 
     // Initialize enhanced inventory service
     final enhancedInventoryService = EnhancedInventoryService();
