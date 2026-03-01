@@ -153,4 +153,3 @@ def profile(request):
         'email': user.email,
         'merchant': merchant_data,
     })
-
